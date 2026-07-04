@@ -1,0 +1,43 @@
+meta {
+  name: Crear
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/usuarios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "usuario.prueba.bruno",
+    "email": "usuario.prueba@example.com",
+    "password": "clave12345",
+    "rolId": 4,
+    "estadoId": 1
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("usuarioId", res.body.id);
+  }
+}
+
+tests {
+  test("crea el recurso y devuelve 201", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("devuelve el usuario sin password", function () {
+    expect(res.body).to.have.property("nombre", "usuario.prueba.bruno");
+    expect(res.body).to.not.have.property("password");
+    expect(res.body).to.not.have.property("passwordHash");
+  });
+}

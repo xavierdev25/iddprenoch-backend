@@ -1,0 +1,27 @@
+meta {
+  name: Actualizar
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/pastores/{{pastorId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "celular": "999111222"
+  }
+}
+
+tests {
+  test("actualiza y devuelve 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

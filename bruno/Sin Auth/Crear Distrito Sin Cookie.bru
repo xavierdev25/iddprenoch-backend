@@ -1,0 +1,32 @@
+meta {
+  name: Crear Distrito Sin Cookie
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/distritos
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Distrito Sin Cookie"
+  }
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.deleteCookie(bru.getEnvVar("baseUrl"), "auth_token");
+}
+
+tests {
+  test("recurso público en GET pero protegido en escritura: sin cookie devuelve 401", function () {
+    expect(res.status).to.equal(401);
+  });
+}

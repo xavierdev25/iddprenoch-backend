@@ -1,0 +1,47 @@
+meta {
+  name: Crear
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/congregantes
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "dni": "11223344",
+    "nombre": "Congregante",
+    "apellido": "De Prueba Bruno",
+    "telefono": "988777666",
+    "correo": "congregante.prueba@example.com",
+    "iglesiaId": 1,
+    "sexoId": 1,
+    "estadoCivilId": 1,
+    "estadoEclesialId": 1,
+    "fechaConversion": "2020-01-15",
+    "fechaBautismo": "2021-03-20"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("congreganteId", res.body.id);
+  }
+}
+
+tests {
+  test("crea el recurso y devuelve 201", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("devuelve el recurso creado", function () {
+    expect(res.body).to.have.property("dni", "11223344");
+  });
+}

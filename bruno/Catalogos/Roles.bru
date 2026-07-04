@@ -1,0 +1,21 @@
+meta {
+  name: Roles
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/roles
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 200 con sesión", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("es una lista simple sin paginación", function () {
+    expect(Array.isArray(res.body)).to.equal(true);
+  });
+}

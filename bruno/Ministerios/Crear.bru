@@ -1,0 +1,39 @@
+meta {
+  name: Crear
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/ministerios
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Ministerio de Prueba Bruno",
+    "slug": "prueba-bruno",
+    "descripcion": "Ministerio creado para pruebas de la colección Bruno."
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("ministerioId", res.body.id);
+  }
+}
+
+tests {
+  test("crea el recurso y devuelve 201", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("devuelve el recurso creado", function () {
+    expect(res.body).to.have.property("nombre", "Ministerio de Prueba Bruno");
+  });
+}

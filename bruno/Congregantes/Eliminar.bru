@@ -1,0 +1,17 @@
+meta {
+  name: Eliminar
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/congregantes/{{congreganteId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("elimina y devuelve 204", function () {
+    expect(res.status).to.equal(204);
+  });
+}

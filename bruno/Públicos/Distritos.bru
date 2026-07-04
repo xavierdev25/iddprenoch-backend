@@ -1,0 +1,22 @@
+meta {
+  name: Distritos
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/distritos
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 200 sin necesidad de cookie", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("respuesta paginada con data/total/page/limit", function () {
+    expect(res.body).to.have.property("data");
+    expect(res.body).to.have.property("total");
+  });
+}

@@ -1,0 +1,41 @@
+meta {
+  name: Crear
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/eventos
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Evento de Prueba Bruno",
+    "fechaConHora": "2026-08-15T18:00:00.000Z",
+    "ubicacion": "Auditorio Central",
+    "imagen": "https://example.com/evento.jpg",
+    "descripcion": "Evento creado para pruebas de la colección Bruno."
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("eventoId", res.body.id);
+  }
+}
+
+tests {
+  test("crea el recurso y devuelve 201", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("devuelve el recurso creado", function () {
+    expect(res.body).to.have.property("nombre", "Evento de Prueba Bruno");
+  });
+}

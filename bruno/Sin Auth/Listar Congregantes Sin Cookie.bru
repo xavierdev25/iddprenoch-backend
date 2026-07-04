@@ -1,0 +1,22 @@
+meta {
+  name: Listar Congregantes Sin Cookie
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/congregantes
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.deleteCookie(bru.getEnvVar("baseUrl"), "auth_token");
+}
+
+tests {
+  test("sin cookie de sesión devuelve 401", function () {
+    expect(res.status).to.equal(401);
+  });
+}

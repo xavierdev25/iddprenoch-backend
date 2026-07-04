@@ -1,0 +1,33 @@
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "admin",
+    "password": "admin123"
+  }
+}
+
+tests {
+  test("login exitoso devuelve 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("devuelve el usuario sin el hash de password", function () {
+    expect(res.body).to.have.property("nombre", "admin");
+    expect(res.body).to.not.have.property("passwordHash");
+  });
+}

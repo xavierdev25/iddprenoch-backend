@@ -1,0 +1,206 @@
+generator client {
+  provider      = "prisma-client-js"
+  // "native" cubre el runner de CI (Linux glibc). Los demás son los motores
+  // más comunes en hosting compartido cPanel, cuyo SO exacto no controlamos:
+  // así el cliente generado trae varios engines precompilados y Prisma elige
+  // el correcto en tiempo de ejecución, sin depender de que "native" adivine bien.
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "rhel-openssl-1.0.x", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Distrito {
+  id       Int       @id @default(autoincrement())
+  nombre   String    @unique
+  iglesias Iglesia[]
+
+  @@map("distritos")
+}
+
+model Iglesia {
+  id           Int           @id @default(autoincrement())
+  nombre       String
+  direccion    String        @db.Text
+  foto         String?       @db.LongText
+  distrito     Distrito      @relation(fields: [distritoId], references: [id])
+  distritoId   Int           @map("distrito_id")
+  ministerio   Ministerio?   @relation(fields: [ministerioId], references: [id])
+  ministerioId Int?          @map("ministerio_id")
+  pastores     Pastor[]
+  lideres      Lider[]
+  congregantes Congregante[]
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@index([distritoId])
+  @@index([ministerioId])
+  @@map("iglesias")
+}
+
+model Cargo {
+  id       Int      @id @default(autoincrement())
+  nombre   String   @unique
+  pastores Pastor[]
+
+  @@map("cargos")
+}
+
+model Pastor {
+  id           Int      @id @default(autoincrement())
+  nombrePastor String   @map("nombre_pastor")
+  celular      String?
+  foto         String?  @db.LongText
+  iglesia      Iglesia  @relation(fields: [iglesiaId], references: [id])
+  iglesiaId    Int      @map("iglesia_id")
+  cargo        Cargo    @relation(fields: [cargoId], references: [id])
+  cargoId      Int      @map("cargo_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([iglesiaId])
+  @@index([cargoId])
+  @@map("pastores")
+}
+
+model Ministerio {
+  id          Int       @id @default(autoincrement())
+  nombre      String    @unique
+  slug        String?   @unique
+  descripcion String?   @db.Text
+  iglesias    Iglesia[]
+  lideres     Lider[]
+
+  @@map("ministerios")
+}
+
+model Lider {
+  id           Int        @id @default(autoincrement())
+  dni          String     @unique @db.Char(8)
+  nombre       String
+  apellido     String
+  telefono     String?
+  correo       String?
+  ministerio   Ministerio @relation(fields: [ministerioId], references: [id])
+  ministerioId Int        @map("ministerio_id")
+  iglesia      Iglesia    @relation(fields: [iglesiaId], references: [id])
+  iglesiaId    Int        @map("iglesia_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([ministerioId])
+  @@index([iglesiaId])
+  @@map("lideres")
+}
+
+model Congregante {
+  id               Int            @id @default(autoincrement())
+  dni              String         @unique @db.Char(8)
+  nombre           String
+  apellido         String
+  telefono         String?
+  correo           String?
+  foto             String?        @db.LongText
+  iglesia          Iglesia        @relation(fields: [iglesiaId], references: [id])
+  iglesiaId        Int            @map("iglesia_id")
+  sexo             Sexo           @relation(fields: [sexoId], references: [id])
+  sexoId           Int            @map("sexo_id")
+  estadoCivil      EstadoCivil    @relation(fields: [estadoCivilId], references: [id])
+  estadoCivilId    Int            @map("estado_civil_id")
+  estadoEclesial   EstadoEclesial @relation(fields: [estadoEclesialId], references: [id])
+  estadoEclesialId Int            @map("estado_eclesial_id")
+  fechaConversion  DateTime?      @map("fecha_conversion") @db.Date
+  fechaBautismo    DateTime?      @map("fecha_bautismo") @db.Date
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  @@index([iglesiaId])
+  @@index([sexoId])
+  @@index([estadoCivilId])
+  @@index([estadoEclesialId])
+  @@map("congregantes")
+}
+
+model Evento {
+  id           Int      @id @default(autoincrement())
+  nombre       String
+  fechaConHora DateTime @map("fecha_con_hora")
+  ubicacion    String?  @db.Text
+  imagen       String?  @db.LongText
+  descripcion  String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([fechaConHora])
+  @@map("eventos")
+}
+
+model Comunicado {
+  id          Int      @id @default(autoincrement())
+  titulo      String
+  imagen      String?  @db.LongText
+  descripcion String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("comunicados")
+}
+
+model Rol {
+  id       Int       @id @default(autoincrement())
+  nombre   String    @unique
+  usuarios Usuario[]
+
+  @@map("roles")
+}
+
+model EstadoUsuario {
+  id       Int       @id @default(autoincrement())
+  nombre   String    @unique
+  usuarios Usuario[]
+
+  @@map("estados_usuario")
+}
+
+model Usuario {
+  id           Int           @id @default(autoincrement())
+  nombre       String        @unique
+  email        String?       @unique
+  passwordHash String        @map("password_hash")
+  rol          Rol           @relation(fields: [rolId], references: [id])
+  rolId        Int           @map("rol_id")
+  estado       EstadoUsuario @relation(fields: [estadoId], references: [id])
+  estadoId     Int           @map("estado_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@index([rolId])
+  @@index([estadoId])
+  @@map("usuarios")
+}
+
+model Sexo {
+  id           Int           @id @default(autoincrement())
+  nombre       String        @unique
+  congregantes Congregante[]
+
+  @@map("sexo")
+}
+
+model EstadoCivil {
+  id           Int           @id @default(autoincrement())
+  nombre       String        @unique
+  congregantes Congregante[]
+
+  @@map("estado_civil")
+}
+
+model EstadoEclesial {
+  id           Int           @id @default(autoincrement())
+  nombre       String        @unique
+  congregantes Congregante[]
+
+  @@map("estado_eclesial")
+}

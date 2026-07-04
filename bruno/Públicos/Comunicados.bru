@@ -1,0 +1,17 @@
+meta {
+  name: Comunicados
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/comunicados
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 200 sin necesidad de cookie", function () {
+    expect(res.status).to.equal(200);
+  });
+}

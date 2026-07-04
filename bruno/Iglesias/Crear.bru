@@ -1,0 +1,41 @@
+meta {
+  name: Crear
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/iglesias
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombre": "Iglesia de Prueba Bruno",
+    "direccion": "Av. Ejemplo 123",
+    "distritoId": 1,
+    "ministerioId": 1,
+    "foto": "https://example.com/foto.jpg"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("iglesiaId", res.body.id);
+  }
+}
+
+tests {
+  test("crea el recurso y devuelve 201", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("devuelve el recurso creado", function () {
+    expect(res.body).to.have.property("nombre", "Iglesia de Prueba Bruno");
+  });
+}

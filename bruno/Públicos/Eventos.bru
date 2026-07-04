@@ -1,0 +1,17 @@
+meta {
+  name: Eventos
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/eventos
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 200 sin necesidad de cookie", function () {
+    expect(res.status).to.equal(200);
+  });
+}

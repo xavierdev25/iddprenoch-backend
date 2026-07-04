@@ -1,0 +1,43 @@
+meta {
+  name: Crear
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/lideres
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "dni": "87654321",
+    "nombre": "Lider",
+    "apellido": "De Prueba Bruno",
+    "telefono": "999000111",
+    "correo": "lider.prueba@example.com",
+    "ministerioId": 1,
+    "iglesiaId": 1
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("liderId", res.body.id);
+  }
+}
+
+tests {
+  test("crea el recurso y devuelve 201", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("devuelve el recurso creado", function () {
+    expect(res.body).to.have.property("dni", "87654321");
+  });
+}

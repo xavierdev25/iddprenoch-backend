@@ -1,0 +1,40 @@
+meta {
+  name: Crear
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/pastores
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "nombrePastor": "Pastor de Prueba Bruno",
+    "celular": "999888777",
+    "iglesiaId": 1,
+    "cargoId": 1
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("pastorId", res.body.id);
+  }
+}
+
+tests {
+  test("crea el recurso y devuelve 201", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("devuelve el recurso creado", function () {
+    expect(res.body).to.have.property("nombrePastor", "Pastor de Prueba Bruno");
+  });
+}

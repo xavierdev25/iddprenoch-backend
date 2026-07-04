@@ -1,0 +1,26 @@
+meta {
+  name: Listar
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/iglesias?page=1&limit=10
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  limit: 10
+}
+
+tests {
+  test("devuelve 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("respuesta paginada", function () {
+    expect(res.body).to.have.keys("data", "total", "page", "limit");
+  });
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Pastores
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/pastores
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 200 sin necesidad de cookie", function () {
+    expect(res.status).to.equal(200);
+  });
+}

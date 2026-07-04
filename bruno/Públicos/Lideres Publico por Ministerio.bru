@@ -1,0 +1,25 @@
+meta {
+  name: Lideres Publico por Ministerio
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/ministerios/mujer/lideres-publico
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 200 sin necesidad de cookie", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("respuesta reducida sin dni/telefono/correo", function () {
+    const body = res.body;
+    expect(Array.isArray(body)).to.equal(true);
+    if (body.length > 0) {
+      expect(body[0]).to.have.all.keys("id", "nombre", "apellido", "ministerioId");
+    }
+  });
+}

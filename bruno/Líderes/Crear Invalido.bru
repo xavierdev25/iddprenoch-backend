@@ -1,0 +1,35 @@
+meta {
+  name: Crear Invalido
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/lideres
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "dni": "123",
+    "nombre": "Lider Invalido",
+    "apellido": "Test",
+    "ministerioId": 1,
+    "iglesiaId": 1
+  }
+}
+
+tests {
+  test("dni con longitud inválida, devuelve 400", function () {
+    expect(res.status).to.equal(400);
+  });
+
+  test("incluye mensaje de error de validación", function () {
+    expect(res.body).to.have.property("error");
+  });
+}

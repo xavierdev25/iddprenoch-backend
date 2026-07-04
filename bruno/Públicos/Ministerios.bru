@@ -1,0 +1,17 @@
+meta {
+  name: Ministerios
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/ministerios
+  body: none
+  auth: none
+}
+
+tests {
+  test("devuelve 200 sin necesidad de cookie", function () {
+    expect(res.status).to.equal(200);
+  });
+}

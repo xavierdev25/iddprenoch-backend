@@ -1,0 +1,76 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Test & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
+
+  deploy:
+    name: Deploy to cPanel
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # --omit=dev: solo dependencias de producción, ya que node_modules viaja
+      # completo por FTP (cPanel no da SSH en este hosting para correr `npm ci`
+      # en el servidor). El runner de GitHub Actions es Linux x64 glibc, que es
+      # el mismo entorno de la mayoría de hosting cPanel — si tu cPanel corre
+      # sobre una distro distinta (musl, glibc muy antiguo, etc.), los binarios
+      # nativos de bcrypt/@prisma/client pueden no cargar y este paso necesitará
+      # ajustarse (por ejemplo, fijando `binaryTargets` en schema.prisma).
+      - run: npm ci --omit=dev
+      - run: npx prisma generate
+      - run: npm run build
+
+      # IMPORTANTE: sin SSH no hay forma de correr `prisma migrate deploy` en el
+      # servidor desde este workflow. Antes de mergear a main un cambio que
+      # incluya una migración nueva, aplícala manualmente contra la base de
+      # datos de producción (ej. `DATABASE_URL=<prod> npx prisma migrate deploy`
+      # desde tu máquina, o la consola de BD que ofrezca el panel de cPanel).
+
+      - name: Subir build a cPanel (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}/
+          local-dir: ./
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            src/**
+            bruno/**
+            .env
+            .env.example
+
+      # Las variables de entorno (DATABASE_URL, JWT_SECRET, etc.) se configuran
+      # en el panel "Setup Node.js App" de cPanel, no vía archivo .env subido.
+
+      - name: Reiniciar la app (Passenger)
+        run: |
+          curl --ftp-create-dirs -T /dev/null \
+            "ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }}${{ secrets.FTP_SERVER_DIR }}/tmp/restart.txt"

@@ -1,0 +1,27 @@
+meta {
+  name: Actualizar
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/iglesias/{{iglesiaId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "direccion": "Av. Actualizada 456"
+  }
+}
+
+tests {
+  test("actualiza y devuelve 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
