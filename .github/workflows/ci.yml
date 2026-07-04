@@ -33,16 +33,20 @@ jobs:
           node-version: 22
           cache: npm
 
-      # --omit=dev: solo dependencias de producción, ya que node_modules viaja
-      # completo por FTP (cPanel no da SSH en este hosting para correr `npm ci`
-      # en el servidor). El runner de GitHub Actions es Linux x64 glibc, que es
-      # el mismo entorno de la mayoría de hosting cPanel — si tu cPanel corre
-      # sobre una distro distinta (musl, glibc muy antiguo, etc.), los binarios
-      # nativos de bcrypt/@prisma/client pueden no cargar y este paso necesitará
-      # ajustarse (por ejemplo, fijando `binaryTargets` en schema.prisma).
-      - run: npm ci --omit=dev
+      # Instalamos con devDependencies incluidas porque `npm run build` (tsc)
+      # las necesita para compilar. Una vez compilado, podamos con
+      # `npm prune --omit=dev` para que el node_modules que viaja por FTP sea
+      # solo de producción (cPanel no da SSH en este hosting para correr
+      # `npm ci` en el servidor). El runner de GitHub Actions es Linux x64
+      # glibc, que es el mismo entorno de la mayoría de hosting cPanel — si tu
+      # cPanel corre sobre una distro distinta (musl, glibc muy antiguo, etc.),
+      # los binarios nativos de bcrypt/@prisma/client pueden no cargar y este
+      # paso necesitará ajustarse (por ejemplo, fijando `binaryTargets` en
+      # schema.prisma).
+      - run: npm ci
       - run: npx prisma generate
       - run: npm run build
+      - run: npm prune --omit=dev
 
       # IMPORTANTE: sin SSH no hay forma de correr `prisma migrate deploy` en el
       # servidor desde este workflow. Antes de mergear a main un cambio que
