@@ -99,5 +99,5 @@ jobs:
 
       - name: Reiniciar la app (Passenger)
         run: |
-          curl --ftp-create-dirs -T /dev/null \
+          curl -g --ftp-create-dirs -T /dev/null \
             "ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }}${{ secrets.FTP_SERVER_DIR }}/tmp/restart.txt"
