@@ -1,10 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
-  // "native" cubre el runner de CI (Linux glibc). Los demás son los motores
-  // más comunes en hosting compartido cPanel, cuyo SO exacto no controlamos:
-  // así el cliente generado trae varios engines precompilados y Prisma elige
-  // el correcto en tiempo de ejecución, sin depender de que "native" adivine bien.
-  binaryTargets = ["native", "rhel-openssl-3.0.x", "rhel-openssl-1.0.x", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
 }
 
 datasource db {
