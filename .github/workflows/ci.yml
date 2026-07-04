@@ -34,25 +34,50 @@ jobs:
           cache: npm
 
       # Instalamos con devDependencies incluidas porque `npm run build` (tsc)
-      # las necesita para compilar. Una vez compilado, podamos con
-      # `npm prune --omit=dev` para que el node_modules que viaja por FTP sea
-      # solo de producción (cPanel no da SSH en este hosting para correr
-      # `npm ci` en el servidor). El runner de GitHub Actions es Linux x64
-      # glibc, que es el mismo entorno de la mayoría de hosting cPanel — si tu
-      # cPanel corre sobre una distro distinta (musl, glibc muy antiguo, etc.),
-      # los binarios nativos de bcrypt/@prisma/client pueden no cargar y este
-      # paso necesitará ajustarse (por ejemplo, fijando `binaryTargets` en
-      # schema.prisma).
+      # y `prisma generate` las necesitan. node_modules de este runner nunca
+      # viaja por FTP (ver step "Armar paquete de deploy" más abajo); las
+      # dependencias de producción se instalan en el propio servidor porque
+      # cPanel no da SSH en este hosting para correr `npm ci` ahí. El runner
+      # de GitHub Actions es Linux x64 glibc, que es el mismo entorno de la
+      # mayoría de hosting cPanel — si tu cPanel corre sobre una distro
+      # distinta (musl, glibc muy antiguo, etc.), los binarios nativos de
+      # bcrypt/@prisma/client pueden no cargar y este paso necesitará
+      # ajustarse (por ejemplo, fijando `binaryTargets` en schema.prisma).
       - run: npm ci
       - run: npx prisma generate
       - run: npm run build
-      - run: npm prune --omit=dev
 
       # IMPORTANTE: sin SSH no hay forma de correr `prisma migrate deploy` en el
       # servidor desde este workflow. Antes de mergear a main un cambio que
       # incluya una migración nueva, aplícala manualmente contra la base de
       # datos de producción (ej. `DATABASE_URL=<prod> npx prisma migrate deploy`
       # desde tu máquina, o la consola de BD que ofrezca el panel de cPanel).
+
+      # `node_modules` NUNCA se sube por FTP: se instala en el propio servidor
+      # (cPanel > Setup Node.js App > Run NPM Install). La única excepción es
+      # node_modules/.prisma/client, que se generó y subió manualmente una vez
+      # por el tema de los binarios nativos de Prisma en ese hosting. Por eso
+      # armamos aquí una carpeta con solo lo que debe viajar, en vez de subir
+      # la raíz del repo (que arrastraría node_modules completo, incluyendo
+      # devDependencies como fast-check/vitest).
+      - name: Armar paquete de deploy (sin node_modules)
+        run: |
+          rm -rf deploy-package
+          mkdir -p deploy-package/prisma
+          cp -r dist deploy-package/
+          cp package.json package-lock.json deploy-package/
+          cp prisma/schema.prisma deploy-package/prisma/
+          cp -r prisma/migrations deploy-package/prisma/
+
+      - name: Verificar que no viaja node_modules
+        run: |
+          if find deploy-package -iname 'node_modules' | grep -q .; then
+            echo "ERROR: node_modules encontrado en deploy-package"
+            find deploy-package -iname 'node_modules'
+            exit 1
+          fi
+          echo "OK: sin node_modules. Contenido a subir:"
+          find deploy-package -maxdepth 2
 
       - name: Subir build a cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -61,18 +86,16 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_SERVER_DIR }}/
-          local-dir: ./
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.github/**
-            src/**
-            bruno/**
-            .env
-            .env.example
+          local-dir: ./deploy-package/
 
       # Las variables de entorno (DATABASE_URL, JWT_SECRET, etc.) se configuran
       # en el panel "Setup Node.js App" de cPanel, no vía archivo .env subido.
+
+      # Si este deploy agregó/actualizó una dependencia en package.json, entra
+      # a cPanel > Setup Node.js App > "Run NPM Install" manualmente después de
+      # que termine este workflow (no está automatizado por las limitaciones de
+      # recursos de CloudLinux). Si el deploy es solo cambios de código sin
+      # tocar package.json, con subir dist/ y reiniciar la app alcanza.
 
       - name: Reiniciar la app (Passenger)
         run: |
