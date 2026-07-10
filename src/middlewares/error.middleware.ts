@@ -16,6 +16,14 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   if (err instanceof ApiError) {
     statusCode = err.statusCode;
     message = err.message;
+  } else if (
+    typeof err === 'object' &&
+    err !== null &&
+    ((err as { type?: string }).type === 'entity.too.large' ||
+      (err as { status?: number }).status === 413)
+  ) {
+    statusCode = 413;
+    message = 'El archivo es demasiado grande. Intenta con una imagen más liviana.';
   } else if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {
       statusCode = 409;
