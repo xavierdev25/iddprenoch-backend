@@ -21,6 +21,12 @@ model Iglesia {
   nombre       String
   direccion    String        @db.Text
   foto         String?       @db.LongText
+  // Coordenadas del punto exacto de la sede. Se guardan como Float (DOUBLE en MySQL) en vez de
+  // Decimal porque son mediciones, no importes: no requieren aritmética decimal exacta y evitan
+  // el wrapper Prisma.Decimal al serializar a JSON. La mayoría de las sedes no figura como lugar
+  // en Google Maps, así que el dato viene de soltar un pin, no de buscar el nombre.
+  latitud      Float?
+  longitud     Float?
   distrito     Distrito      @relation(fields: [distritoId], references: [id])
   distritoId   Int           @map("distrito_id")
   ministerio   Ministerio?   @relation(fields: [ministerioId], references: [id])
@@ -62,12 +68,13 @@ model Pastor {
 }
 
 model Ministerio {
-  id          Int       @id @default(autoincrement())
-  nombre      String    @unique
-  slug        String?   @unique
-  descripcion String?   @db.Text
-  iglesias    Iglesia[]
-  lideres     Lider[]
+  id           Int           @id @default(autoincrement())
+  nombre       String        @unique
+  slug         String?       @unique
+  descripcion  String?       @db.Text
+  iglesias     Iglesia[]
+  lideres      Lider[]
+  congregantes Congregante[]
 
   @@map("ministerios")
 }
@@ -99,8 +106,15 @@ model Congregante {
   telefono         String?
   correo           String?
   foto             String?        @db.LongText
+  // El grupo etario (niño/adolescente/joven/adulto) NO se guarda: se deriva de esta fecha en cada
+  // consulta (ver utils/edad.ts). Guardarlo se desincronizaría en silencio cada cumpleaños, y los
+  // reportes de membresía se leen justamente para saber la composición actual.
+  fechaNacimiento  DateTime?      @map("fecha_nacimiento") @db.Date
   iglesia          Iglesia        @relation(fields: [iglesiaId], references: [id])
   iglesiaId        Int            @map("iglesia_id")
+  // Ministerio en el que participa. Opcional: no todo congregante sirve en un ministerio.
+  ministerio       Ministerio?    @relation(fields: [ministerioId], references: [id])
+  ministerioId     Int?           @map("ministerio_id")
   sexo             Sexo           @relation(fields: [sexoId], references: [id])
   sexoId           Int            @map("sexo_id")
   estadoCivil      EstadoCivil    @relation(fields: [estadoCivilId], references: [id])
@@ -113,9 +127,12 @@ model Congregante {
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
   @@index([iglesiaId])
+  @@index([ministerioId])
   @@index([sexoId])
   @@index([estadoCivilId])
   @@index([estadoEclesialId])
+  // Los reportes filtran por rango de fecha de nacimiento para acotar grupos etarios en SQL.
+  @@index([fechaNacimiento])
   @@map("congregantes")
 }
 

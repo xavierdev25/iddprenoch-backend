@@ -9,7 +9,7 @@ async function main() {
   } catch (err) {
     logger.error(
       { err },
-      'No se pudo conectar a la base de datos. Verifica DATABASE_URL y que PostgreSQL esté corriendo.',
+      'No se pudo conectar a la base de datos. Verifica DATABASE_URL y que MySQL esté corriendo.',
     );
     process.exit(1);
   }

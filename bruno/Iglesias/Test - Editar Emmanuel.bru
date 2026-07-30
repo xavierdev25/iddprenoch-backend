@@ -1,0 +1,33 @@
+meta {
+  name: Test - Editar Emmanuel
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/iglesias/29
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "direccion": "San Pedro Mártir s/n, Puerto Supe"
+  }
+}
+
+tests {
+  test("actualiza y devuelve 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("el campo foto sigue presente y no vacío (no se puede verificar LENGTH(foto) sin SQL)", function () {
+    expect(res.body).to.have.property("foto");
+    expect(res.body.foto).to.not.be.null;
+    expect(res.body.foto).to.not.equal("");
+  });
+}

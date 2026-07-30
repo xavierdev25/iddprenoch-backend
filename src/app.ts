@@ -17,6 +17,7 @@ import { comunicadosRouter } from './modules/comunicados/comunicados.routes';
 import { usuariosRouter } from './modules/usuarios/usuarios.routes';
 import { cargosRouter } from './modules/cargos/cargos.routes';
 import { catalogosRouter } from './modules/catalogos/catalogos.routes';
+import { reportesRouter } from './modules/reportes/reportes.routes';
 import { notFoundHandler, errorHandler } from './middlewares/error.middleware';
 
 export const app = express();
@@ -28,6 +29,10 @@ app.use(
   cors({
     origin: 'http://localhost:4200',
     credentials: true,
+    // Sin exponerlo, el navegador oculta este encabezado al JS en peticiones entre orígenes y las
+    // descargas de reportes se guardarían con el nombre de respaldo en vez del que arma el
+    // backend (que incluye la fecha, para no pisar descargas de meses distintos).
+    exposedHeaders: ['Content-Disposition'],
   }),
 );
 app.use(express.json({ limit: '5mb' }));
@@ -44,6 +49,7 @@ app.use('/api/eventos', eventosRouter);
 app.use('/api/comunicados', comunicadosRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/cargos', cargosRouter);
+app.use('/api/reportes', reportesRouter);
 app.use('/api', catalogosRouter);
 
 app.use(notFoundHandler);

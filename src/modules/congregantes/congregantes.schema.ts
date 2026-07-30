@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { dniField, emailField, idField, urlField } from '../../utils/schemaHelpers';
+import {
+  dniField,
+  emailField,
+  fechaNacimientoField,
+  idField,
+  idOpcionalField,
+  urlField,
+} from '../../utils/schemaHelpers';
 
 export const createCongreganteSchema = z.object({
   dni: dniField,
@@ -8,7 +15,10 @@ export const createCongreganteSchema = z.object({
   telefono: z.string().max(20).optional(),
   correo: emailField('correo'),
   foto: urlField('foto'),
+  fechaNacimiento: fechaNacimientoField,
   iglesiaId: idField('iglesiaId'),
+  /** Opcional: no todo congregante sirve en un ministerio. */
+  ministerioId: idOpcionalField,
   sexoId: idField('sexoId'),
   estadoCivilId: idField('estadoCivilId'),
   estadoEclesialId: idField('estadoEclesialId'),

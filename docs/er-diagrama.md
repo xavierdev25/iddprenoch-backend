@@ -17,6 +17,7 @@ erDiagram
     IGLESIA ||--o{ CONGREGANTE : tiene
     CARGO ||--o{ PASTOR : clasifica
     MINISTERIO ||--o{ LIDER : agrupa
+    MINISTERIO ||--o{ CONGREGANTE : "participa en (opcional)"
     SEXO ||--o{ CONGREGANTE : clasifica
     ESTADO_CIVIL ||--o{ CONGREGANTE : clasifica
     ESTADO_ECLESIAL ||--o{ CONGREGANTE : clasifica
@@ -33,6 +34,8 @@ erDiagram
         string nombre
         text direccion "db.Text"
         longtext foto "db.LongText, base64, nullable"
+        double latitud "nullable"
+        double longitud "nullable"
         int distrito_id FK
         int ministerio_id FK "nullable"
         datetime created_at
@@ -83,7 +86,9 @@ erDiagram
         string telefono "nullable"
         string correo "nullable"
         longtext foto "db.LongText, base64, nullable"
+        date fecha_nacimiento "nullable"
         int iglesia_id FK
+        int ministerio_id FK "nullable"
         int sexo_id FK
         int estado_civil_id FK
         int estado_eclesial_id FK
@@ -149,6 +154,24 @@ erDiagram
         string nombre UK
     }
 ```
+
+## Datos derivados que no se almacenan
+
+Dos campos que aparecen en las respuestas de la API **no existen como columna**, y es deliberado:
+
+- **`edad` y `grupoEtario`** de un congregante se calculan desde `fecha_nacimiento` en cada consulta
+  (`src/utils/edad.ts`). Guardarlos los desincronizaría en silencio cada cumpleaños, y los reportes
+  de membresía se piden justamente para conocer la composición vigente. Los cortes de edad
+  (niños 0–11, adolescentes 12–17, jóvenes 18–30, adultos 31+) viven en una sola constante,
+  `GRUPOS_ETARIOS`, que usan por igual el cálculo, los filtros SQL y los reportes.
+- **`mapsUrl`** de una iglesia se arma desde `latitud`/`longitud`. Así el enlace no puede quedar
+  apuntando a un punto distinto del guardado ni atado al formato de URL que Google use hoy. Al
+  guardar, en cambio, `mapsUrl` sí se acepta como entrada: se pega el enlace de Google Maps y el
+  backend extrae las coordenadas (`src/utils/mapsUrl.ts`).
+
+Las coordenadas se guardan porque la mayoría de las sedes no figura como lugar registrado en Google
+Maps: buscarlas por nombre y dirección cae en otro sitio o en ninguno, así que el dato viene de
+soltar un pin en el punto exacto.
 
 ## Notas sobre el mapeo a MySQL
 

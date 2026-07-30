@@ -28,11 +28,15 @@ export function buildCrudService(config: CrudModelConfig) {
   const map = config.toResponse ?? ((record: unknown) => record);
 
   return {
-    async list(page: number, limit: number) {
+    /**
+     * `where` acota el listado (p. ej. congregantes de una iglesia). `total` se cuenta con el mismo
+     * filtro que la página, si no la paginación del frontend mostraría el total sin filtrar.
+     */
+    async list(page: number, limit: number, where?: Record<string, unknown>) {
       const skip = (page - 1) * limit;
       const [items, total] = await Promise.all([
-        config.model.findMany({ include: config.include, orderBy: config.orderBy, skip, take: limit }),
-        config.model.count(),
+        config.model.findMany({ where, include: config.include, orderBy: config.orderBy, skip, take: limit }),
+        config.model.count({ where }),
       ]);
       return { data: items.map(map), total, page, limit };
     },
@@ -68,6 +72,11 @@ export type CrudService = ReturnType<typeof buildCrudService>;
 export interface CrudSchemas {
   createSchema: ZodType;
   updateSchema: ZodType;
+  /**
+   * Traduce los query params del listado a un `where` de Prisma. Opcional: los módulos sin
+   * filtros (catálogos, comunicados) siguen listando todo.
+   */
+  parseListFilters?: (query: Request['query']) => Record<string, unknown> | undefined;
 }
 
 function parsePagination(req: Request) {
@@ -92,7 +101,7 @@ export function buildCrudController(service: CrudService, schemas: CrudSchemas) 
   return {
     list: asyncHandler(async (req: Request, res: Response) => {
       const { page, limit } = parsePagination(req);
-      res.json(await service.list(page, limit));
+      res.json(await service.list(page, limit, schemas.parseListFilters?.(req.query)));
     }),
 
     detail: asyncHandler(async (req: Request, res: Response) => {
