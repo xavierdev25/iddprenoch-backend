@@ -5,4 +5,5 @@ import { createLiderSchema, updateLiderSchema } from './lideres.schema';
 export const lideresController = buildCrudController(lideresService, {
   createSchema: createLiderSchema,
   updateSchema: updateLiderSchema,
+  alcance: 'iglesia',
 });

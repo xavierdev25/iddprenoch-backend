@@ -2,6 +2,13 @@ import { Request, Response } from 'express';
 import { ZodError, ZodType } from 'zod';
 import { ApiError } from './ApiError';
 import { asyncHandler } from './asyncHandler';
+import { auditar } from './auditoria';
+import {
+  distritoDeIglesia,
+  exigirDistritoEnAlcance,
+  whereIglesiaEnAlcance,
+  whereRelacionIglesiaEnAlcance,
+} from './alcance';
 
 // Minimal shape of a Prisma model delegate (findMany/findUnique/etc). Using `any` for the
 // query-arg positions is intentional: each entity has a different Prisma payload shape, and
@@ -41,6 +48,11 @@ export function buildCrudService(config: CrudModelConfig) {
       return { data: items.map(map), total, page, limit };
     },
 
+    /** Registro crudo, sin `include` ni mapeo: lo usa el control de alcance para leer su distrito. */
+    async findRecord(id: number): Promise<any | null> {
+      return config.model.findUnique({ where: { id } });
+    },
+
     async getById(id: number) {
       const item = await config.model.findUnique({ where: { id }, include: config.include });
       if (!item) throw new ApiError(404, `${config.entityName} no encontrado`);
@@ -74,55 +86,138 @@ export interface CrudSchemas {
   updateSchema: ZodType;
   /**
    * Traduce los query params del listado a un `where` de Prisma. Opcional: los módulos sin
-   * filtros (catálogos, comunicados) siguen listando todo.
+   * filtros (catálogos, comunicados) siguen listando todo. Recibe la request para poder aplicar
+   * el alcance del usuario a los propios filtros (ver utils/alcance.ts).
    */
-  parseListFilters?: (query: Request['query']) => Record<string, unknown> | undefined;
+  parseListFilters?: (
+    query: Request['query'],
+    req: Request,
+  ) => Record<string, unknown> | undefined | Promise<Record<string, unknown> | undefined>;
+  /**
+   * Alcance por distrito del obispo distrital (ADR-026): cómo se llega al distrito de un registro.
+   * `'iglesia'` = por su `iglesiaId` (congregantes, pastores, líderes); `'distrito'` = por su
+   * propio `distritoId` (iglesias). Sin esta opción el módulo no se acota por distrito.
+   */
+  alcance?: 'iglesia' | 'distrito';
+  /** Deja en la auditoría cada alta, edición y baja (p. ej. los cambios de membresía). */
+  auditar?: boolean;
+  /**
+   * Recorta la respuesta de una request anónima (sitio público). Para los GET que comparten el
+   * sitio y el panel: el panel recibe el registro completo, el público solo lo publicable.
+   */
+  respuestaPublica?: (item: any) => unknown;
 }
 
-function parsePagination(req: Request) {
+export function parsePagination(req: Request) {
   const page = Math.max(1, Number.parseInt(String(req.query.page ?? '1'), 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(String(req.query.limit ?? '20'), 10) || 20));
   return { page, limit };
 }
 
-function parseId(req: Request): number {
+export function parseId(req: Request): number {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) throw new ApiError(400, 'id inválido');
   return id;
 }
 
-function formatZodError(error: ZodError) {
+export function formatZodError(error: ZodError) {
   const first = error.issues[0];
   const field = first?.path.map(String).join('.') || 'body';
   return `${field}: ${first?.message ?? 'valor inválido'}`;
 }
 
+/** Une dos `where` sin que uno pise las claves del otro (ambos pueden filtrar por `iglesia`). */
+function combinarWhere(
+  a: Record<string, unknown> | undefined,
+  b: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const tieneA = a !== undefined && Object.keys(a).length > 0;
+  const tieneB = Object.keys(b).length > 0;
+  if (tieneA && tieneB) return { AND: [a, b] };
+  return tieneB ? b : a;
+}
+
 export function buildCrudController(service: CrudService, schemas: CrudSchemas) {
+  const modoAlcance = schemas.alcance;
+  const publico = (req: Request, item: unknown) =>
+    !req.user && schemas.respuestaPublica ? schemas.respuestaPublica(item) : item;
+
+  /** Distrito del payload validado; `null` = el payload no toca la iglesia/distrito (PUT parcial). */
+  async function distritoDelPayload(data: Record<string, unknown>): Promise<number | null | undefined> {
+    const campo = modoAlcance === 'iglesia' ? 'iglesiaId' : 'distritoId';
+    const valor = data[campo];
+    if (typeof valor !== 'number') return null;
+    return modoAlcance === 'iglesia' ? distritoDeIglesia(valor) : valor;
+  }
+
+  /** Distrito de un registro existente; `null` si no existe (que responda el 404 del servicio). */
+  async function distritoDelRegistro(id: number): Promise<number | null | undefined> {
+    const registro = await service.findRecord(id);
+    if (!registro) return null;
+    return modoAlcance === 'iglesia' ? distritoDeIglesia(registro.iglesiaId) : registro.distritoId;
+  }
+
+  async function exigirRegistroEnAlcance(req: Request, id: number) {
+    if (!modoAlcance || !req.user) return;
+    const distrito = await distritoDelRegistro(id);
+    if (distrito !== null) await exigirDistritoEnAlcance(req, distrito);
+  }
+
   return {
     list: asyncHandler(async (req: Request, res: Response) => {
       const { page, limit } = parsePagination(req);
-      res.json(await service.list(page, limit, schemas.parseListFilters?.(req.query)));
+      const filtros = await schemas.parseListFilters?.(req.query, req);
+      const alcance =
+        modoAlcance === 'iglesia'
+          ? whereRelacionIglesiaEnAlcance(req)
+          : modoAlcance === 'distrito'
+            ? whereIglesiaEnAlcance(req)
+            : {};
+      const pagina = await service.list(page, limit, combinarWhere(filtros, alcance));
+      res.json({ ...pagina, data: pagina.data.map((item) => publico(req, item)) });
     }),
 
     detail: asyncHandler(async (req: Request, res: Response) => {
-      res.json(await service.getById(parseId(req)));
+      const id = parseId(req);
+      await exigirRegistroEnAlcance(req, id);
+      res.json(publico(req, await service.getById(id)));
     }),
 
     create: asyncHandler(async (req: Request, res: Response) => {
       const result = schemas.createSchema.safeParse(req.body);
       if (!result.success) throw new ApiError(400, formatZodError(result.error));
-      res.status(201).json(await service.create(result.data));
+      const data = result.data as Record<string, unknown>;
+      if (modoAlcance) {
+        // En un alta el destino es obligatorio: si no se puede resolver, se deniega (ver alcance.ts).
+        const destino = await distritoDelPayload(data);
+        await exigirDistritoEnAlcance(req, destino ?? undefined);
+      }
+      const created = (await service.create(data)) as { id?: number };
+      if (schemas.auditar) await auditar(req, 'CREAR', 'PERMITIDO', `id=${created.id}`);
+      res.status(201).json(created);
     }),
 
     update: asyncHandler(async (req: Request, res: Response) => {
       const id = parseId(req);
       const result = schemas.updateSchema.safeParse(req.body);
       if (!result.success) throw new ApiError(400, formatZodError(result.error));
-      res.json(await service.update(id, result.data));
+      const data = result.data as Record<string, unknown>;
+      if (modoAlcance) {
+        // Dos condiciones: el registro debe ser hoy de su distrito, y no puede mudarlo a otro.
+        await exigirRegistroEnAlcance(req, id);
+        const destino = await distritoDelPayload(data);
+        if (destino !== null) await exigirDistritoEnAlcance(req, destino);
+      }
+      const updated = await service.update(id, data);
+      if (schemas.auditar) await auditar(req, 'EDITAR', 'PERMITIDO', `campos: ${Object.keys(data).join(', ') || 'ninguno'}`);
+      res.json(updated);
     }),
 
     remove: asyncHandler(async (req: Request, res: Response) => {
-      await service.remove(parseId(req));
+      const id = parseId(req);
+      await exigirRegistroEnAlcance(req, id);
+      await service.remove(id);
+      if (schemas.auditar) await auditar(req, 'ELIMINAR', 'PERMITIDO');
       res.status(204).send();
     }),
   };

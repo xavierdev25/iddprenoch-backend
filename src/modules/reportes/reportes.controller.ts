@@ -3,7 +3,8 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { generarExcelMembresia, generarExcelNominal } from './reportes.excel';
 import { generarPdfMembresia, generarPdfNominal } from './reportes.pdf';
 import { obtenerReporteMembresia, obtenerReporteNominal } from './reportes.service';
-import { parseReporteQuery } from './reportes.schema';
+import { ReporteQuery, parseReporteQuery } from './reportes.schema';
+import { aplicarAlcanceAFiltros } from '../../utils/alcance';
 
 const TIPO_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const TIPO_PDF = 'application/pdf';
@@ -27,36 +28,41 @@ function enviarDescarga(res: Response, archivo: Buffer, nombre: string, tipo: st
   res.end(archivo);
 }
 
+/** Filtros del reporte con el alcance del usuario ya aplicado (el obispo distrital, a su distrito). */
+function consulta(req: Request): Promise<ReporteQuery> {
+  return aplicarAlcanceAFiltros(req, parseReporteQuery(req.query));
+}
+
 export const reportesController = {
   /** Consolidado por iglesia o distrito, en JSON, para pintar la pantalla de reportes. */
   membresia: asyncHandler(async (req: Request, res: Response) => {
-    res.json(await obtenerReporteMembresia(parseReporteQuery(req.query)));
+    res.json(await obtenerReporteMembresia(await consulta(req)));
   }),
 
   membresiaExcel: asyncHandler(async (req: Request, res: Response) => {
-    const query = parseReporteQuery(req.query);
+    const query = await consulta(req);
     const archivo = await generarExcelMembresia(await obtenerReporteMembresia(query));
     enviarDescarga(res, archivo, nombreArchivo(`membresia-por-${query.agruparPor}`, 'xlsx'), TIPO_XLSX);
   }),
 
   membresiaPdf: asyncHandler(async (req: Request, res: Response) => {
-    const query = parseReporteQuery(req.query);
+    const query = await consulta(req);
     const archivo = await generarPdfMembresia(await obtenerReporteMembresia(query));
     enviarDescarga(res, archivo, nombreArchivo(`membresia-por-${query.agruparPor}`, 'pdf'), TIPO_PDF);
   }),
 
   /** Listado nominal en JSON. Sin paginar: es el mismo universo que la descarga. */
   miembros: asyncHandler(async (req: Request, res: Response) => {
-    res.json(await obtenerReporteNominal(parseReporteQuery(req.query)));
+    res.json(await obtenerReporteNominal(await consulta(req)));
   }),
 
   miembrosExcel: asyncHandler(async (req: Request, res: Response) => {
-    const archivo = await generarExcelNominal(await obtenerReporteNominal(parseReporteQuery(req.query)));
+    const archivo = await generarExcelNominal(await obtenerReporteNominal(await consulta(req)));
     enviarDescarga(res, archivo, nombreArchivo('lista-de-miembros', 'xlsx'), TIPO_XLSX);
   }),
 
   miembrosPdf: asyncHandler(async (req: Request, res: Response) => {
-    const archivo = await generarPdfNominal(await obtenerReporteNominal(parseReporteQuery(req.query)));
+    const archivo = await generarPdfNominal(await obtenerReporteNominal(await consulta(req)));
     enviarDescarga(res, archivo, nombreArchivo('lista-de-miembros', 'pdf'), TIPO_PDF);
   }),
 };

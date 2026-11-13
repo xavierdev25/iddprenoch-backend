@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middlewares/auth.middleware';
+import { requireAuthYPermiso } from '../../middlewares/auth.middleware';
 import { reportesController } from './reportes.controller';
 
 export const reportesRouter = Router();
@@ -7,7 +7,7 @@ export const reportesRouter = Router();
 // Los reportes exponen datos personales de congregantes (DNI, teléfono, correo, fecha de
 // nacimiento), el mismo criterio que /api/congregantes: toda la entidad requiere sesión, incluidos
 // los GET y las descargas.
-reportesRouter.use(requireAuth);
+reportesRouter.use(requireAuthYPermiso('membresia'));
 
 // Consolidado: una fila por iglesia o distrito con los conteos por sexo, grupo etario y estado
 // eclesial. `?agruparPor=distrito` cambia el nivel de agregación.

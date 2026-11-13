@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middlewares/auth.middleware';
+import { requireAuthYPermiso } from '../../middlewares/auth.middleware';
 import { usuariosController } from './usuarios.controller';
 
 export const usuariosRouter = Router();
 
-// Gestión de cuentas de administración: toda la entidad requiere autenticación.
-usuariosRouter.use(requireAuth);
+// Gestión de cuentas, roles y distritos: solo el Responsable del sistema (ADR-026).
+usuariosRouter.use(requireAuthYPermiso('usuarios'));
 
 usuariosRouter.get('/', usuariosController.list);
 usuariosRouter.get('/:id', usuariosController.detail);
