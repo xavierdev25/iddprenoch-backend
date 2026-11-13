@@ -77,18 +77,33 @@ Verificación previa, 12/11/2026 23:30 (una sola conexión, sin carga):
   `X-Forwarded-For`. Sin `trust proxy`, el rate limiter del login era uno solo para toda la región
   y la auditoría registraba 127.0.0.1. Corregido con `app.set('trust proxy', 'loopback')`.
 
-Corrida de carga (c), 13/11/2026 03:00:
+Corrida de carga (c), 13/11/2026 00:01–00:08 (adelantada desde las 03:00), desde un solo equipo
+en Lima. Detalle en `loadtest/resultados/spike-electores-2026-11-13T05-02-05-852Z.json`.
 
-_Pendiente: se completa con el resultado de la corrida._
+| Electores | Peticiones/s | 200 / 304 | Errores | p50 / p95 / p99 (ms) | Node p95 (ms) |
+|---|---|---|---|---|---|
+| 25 | 7,7 | 63 / 400 | 0 | 229 / 343 / 707 | 0,09 |
+| 50 | 15,4 | 150 / 776 | 0 | 227 / 628 / 764 | 0,07 |
+| 100 | 31,2 | 300 / 1572 | 0 | 224 / 291 / 674 | 0,06 |
+| 150 | 46,2 | 450 / 2321 | 0 | 223 / 297 / 693 | 0,07 |
+| 200 | 62,1 | 600 / 3125 | 0 | 221 / 292 / 690 | 0,05 |
+
+Socket.IO con 3 clientes (panel + proyección): los 3 en long polling; 60/60 difusiones recibidas,
+latencia servidor → cliente p50 976 ms, p95 1189 ms (dentro del objetivo de < 2 s). El sitio y la
+API respondieron 200 antes, entre pruebas y después.
+
+El tiempo de respuesta lo domina la red (~220 ms de ida y vuelta Lima → hosting) y no la carga: la
+mediana no cambia de 25 a 200 electores, y dentro de Node cada consulta tarda < 0,5 ms.
 
 | Medición | Resultado |
 |---|---|
 | (a) ¿WebSocket pasa por Apache/Passenger? | No: 101 sin `Connection: Upgrade`; Socket.IO en long polling |
 | (b) pids distintos observados | 1 |
-| (c) Electores sostenidos sin errores | |
-| Errores por tipo (429 / 503-508 / conexión / otros) | |
-| Tiempo de respuesta p50 / p95 / p99 (cliente) | |
-| Tiempo dentro de Node p95 | |
+| (c) Electores sostenidos sin errores | 200 (el máximo probado), 60 s, 3725 peticiones |
+| Errores por tipo (429 / 503-508 / conexión / otros) | 0 / 0 / 0 / 0 |
+| Tiempo de respuesta p50 / p95 / p99 (cliente) | 221 / 292 / 690 ms con 200 electores |
+| Tiempo dentro de Node p95 | 0,05 ms (objetivo < 50 ms) |
+| Difusión Socket.IO (long polling) p50 / p95 | 976 / 1189 ms |
 
 ## Consecuencias
 

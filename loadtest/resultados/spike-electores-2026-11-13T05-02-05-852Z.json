@@ -1,0 +1,157 @@
+{
+  "url": "https://iddprenoch.com",
+  "inicio": "2026-11-13T05:02:05.852Z",
+  "detenido": null,
+  "resultados": [
+    {
+      "electores": 25,
+      "completo": true,
+      "peticiones": 463,
+      "porSegundo": 7.7,
+      "codigos": {
+        "200": 63,
+        "304": 400
+      },
+      "errores": {
+        "limiteApp": 0,
+        "limiteHosting": 0,
+        "conexion": 0,
+        "otros": 0
+      },
+      "tasaFallos": 0,
+      "msCliente": {
+        "p50": 229,
+        "p95": 343,
+        "p99": 707,
+        "max": 742
+      },
+      "msServidor": {
+        "p95": 0.09,
+        "max": 0.45
+      },
+      "pids": [
+        "2931933"
+      ]
+    },
+    {
+      "electores": 50,
+      "completo": true,
+      "peticiones": 926,
+      "porSegundo": 15.4,
+      "codigos": {
+        "200": 150,
+        "304": 776
+      },
+      "errores": {
+        "limiteApp": 0,
+        "limiteHosting": 0,
+        "conexion": 0,
+        "otros": 0
+      },
+      "tasaFallos": 0,
+      "msCliente": {
+        "p50": 227,
+        "p95": 628,
+        "p99": 764,
+        "max": 1060
+      },
+      "msServidor": {
+        "p95": 0.07,
+        "max": 0.43
+      },
+      "pids": [
+        "2931933"
+      ]
+    },
+    {
+      "electores": 100,
+      "completo": true,
+      "peticiones": 1872,
+      "porSegundo": 31.2,
+      "codigos": {
+        "200": 300,
+        "304": 1572
+      },
+      "errores": {
+        "limiteApp": 0,
+        "limiteHosting": 0,
+        "conexion": 0,
+        "otros": 0
+      },
+      "tasaFallos": 0,
+      "msCliente": {
+        "p50": 224,
+        "p95": 291,
+        "p99": 674,
+        "max": 725
+      },
+      "msServidor": {
+        "p95": 0.06,
+        "max": 0.33
+      },
+      "pids": [
+        "2931933"
+      ]
+    },
+    {
+      "electores": 150,
+      "completo": true,
+      "peticiones": 2771,
+      "porSegundo": 46.2,
+      "codigos": {
+        "200": 450,
+        "304": 2321
+      },
+      "errores": {
+        "limiteApp": 0,
+        "limiteHosting": 0,
+        "conexion": 0,
+        "otros": 0
+      },
+      "tasaFallos": 0,
+      "msCliente": {
+        "p50": 223,
+        "p95": 297,
+        "p99": 693,
+        "max": 757
+      },
+      "msServidor": {
+        "p95": 0.07,
+        "max": 0.4
+      },
+      "pids": [
+        "2931933"
+      ]
+    },
+    {
+      "electores": 200,
+      "completo": true,
+      "peticiones": 3725,
+      "porSegundo": 62.1,
+      "codigos": {
+        "200": 600,
+        "304": 3125
+      },
+      "errores": {
+        "limiteApp": 0,
+        "limiteHosting": 0,
+        "conexion": 0,
+        "otros": 0
+      },
+      "tasaFallos": 0,
+      "msCliente": {
+        "p50": 221,
+        "p95": 292,
+        "p99": 690,
+        "max": 767
+      },
+      "msServidor": {
+        "p95": 0.05,
+        "max": 0.12
+      },
+      "pids": [
+        "2931933"
+      ]
+    }
+  ]
+}
