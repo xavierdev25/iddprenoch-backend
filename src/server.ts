@@ -2,6 +2,7 @@ import { app } from './app';
 import { env } from './config/env';
 import { prisma } from './db/prisma';
 import { logger } from './utils/logger';
+import { iniciarLimpiezaAuditoria } from './utils/auditoria';
 
 async function main() {
   try {
@@ -13,6 +14,8 @@ async function main() {
     );
     process.exit(1);
   }
+
+  iniciarLimpiezaAuditoria();
 
   app.listen(env.PORT, () => {
     logger.info(`Servidor escuchando en http://localhost:${env.PORT} (${env.NODE_ENV})`);
