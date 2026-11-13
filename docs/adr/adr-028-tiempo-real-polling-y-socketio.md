@@ -50,7 +50,13 @@ esté definido) mide:
 - **(b)** el pid de cada respuesta (cabecera `X-Spike-Pid`), para detectar más de un proceso;
 - **(c)** cuántos 503/508 aparecen con 200 electores consultando cada 3 s:
   `loadtest/spike-electores.mjs`, de madrugada, con carga escalonada (25 → 50 → 100 → 150 → 200,
-  60 s por escalón) y **parada automática al primer 508** o con más del 5 % de respuestas 5xx.
+  60 s por escalón) y **parada inmediata ante el primer error de cualquier tipo** (429, 403, 5xx,
+  timeout, conexión rechazada): una IP bloqueada por el firewall del hosting dejaría sin acceso al
+  propio administrador. Los errores se reportan separados por origen: `limiteApp` (429 de nuestro
+  rate limiter), `limiteHosting` (503/508) y `conexion` (timeouts y rechazos, típicos de un firewall).
+
+Las rutas del spike no pasan por ningún rate limiter de la API (el único es el de
+`POST /api/auth/login`), así que un 429 en la corrida vendría del hosting, no de la aplicación.
 
 El script corre desde un solo equipo y reutiliza conexiones (keep-alive). El límite de EP cuenta
 peticiones concurrentes en el servidor, no clientes ni IPs, así que la medición es representativa de
@@ -58,17 +64,44 @@ la carga real; lo que no reproduce es la latencia de la red móvil del local.
 
 ### Resultados
 
-_Pendiente: se completa tras la corrida en producción._
+Verificación previa, 12/11/2026 23:30 (una sola conexión, sin carga):
+
+- **(a) WebSocket NO pasa.** El handshake llega a Node, que responde `101 Switching Protocols`,
+  pero Apache entrega esa respuesta **sin la cabecera `Connection: Upgrade` y con
+  `Transfer-Encoding: chunked`**. Ningún cliente acepta un upgrade así ("Unexpected server
+  response: 101"), y Socket.IO se queda en long polling. Es configuración del servidor, no se corrige
+  desde la aplicación. Sobre long polling la conexión funciona: ping de ida y vuelta de 650–750 ms
+  desde Lima.
+- **(b) Un solo proceso** (`pid` 2931933 en todas las respuestas). `PASSENGER_BASE_URI=/api`.
+- **IP del cliente:** Passenger entrega todas las requests desde `127.0.0.1`; la IP real llega en
+  `X-Forwarded-For`. Sin `trust proxy`, el rate limiter del login era uno solo para toda la región
+  y la auditoría registraba 127.0.0.1. Corregido con `app.set('trust proxy', 'loopback')`.
+
+Corrida de carga (c), 13/11/2026 03:00:
+
+_Pendiente: se completa con el resultado de la corrida._
 
 | Medición | Resultado |
 |---|---|
-| (a) ¿WebSocket pasa por Apache/Passenger? | |
-| (b) pids distintos observados | |
-| (c) 503/508 con 200 electores | |
-| p95 cliente / p95 dentro de Node | |
+| (a) ¿WebSocket pasa por Apache/Passenger? | No: 101 sin `Connection: Upgrade`; Socket.IO en long polling |
+| (b) pids distintos observados | 1 |
+| (c) Electores sostenidos sin errores | |
+| Errores por tipo (429 / 503-508 / conexión / otros) | |
+| Tiempo de respuesta p50 / p95 / p99 (cliente) | |
+| Tiempo dentro de Node p95 | |
 
 ## Consecuencias
 
+- **Panel y proyección van por long polling**, no por WebSocket (resultado (a)). Para el Sprint 3:
+  configurar el cliente con `transports: ['polling']` para que no intente un upgrade que siempre
+  falla, y contar que cada pestaña abierta del panel o de la proyección mantiene **una petición
+  colgada todo el tiempo**, es decir un Entry Process ocupado de los 20.
+- **Sprint 2 — límite de peticiones por sesión de elector, no por IP.** En la asamblea, todos los
+  celulares pueden salir a internet por el mismo Wi-Fi del local, es decir por una sola IP pública
+  (igual que la corrida del spike, que sale de un solo equipo). Un rate limit por IP en
+  `GET /api/votacion/:codigo/estado` o en `POST /votar` bloquearía a la asamblea entera. Esos
+  endpoints deben limitar por sesión de elector (la cookie de elector). Solo el ingreso con DNI +
+  código, que ocurre antes de tener sesión, puede limitar por DNI + IP, con un tope holgado.
 - Los electores no necesitan cliente de Socket.IO: la vista `/votar/:codigo` queda más liviana y
   funciona igual en redes móviles inestables, porque cada consulta es independiente.
 - Cuando el servidor tiene un cambio, el elector lo ve en hasta 4 s y no al instante. Es aceptable:
