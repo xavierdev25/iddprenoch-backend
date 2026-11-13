@@ -79,3 +79,21 @@ un dato personal; el panel lo sigue recibiendo.
   fallaría con 500.
 - Las pruebas de integración (`src/__integration__/alcance.int.test.ts`) recorren la matriz de punta
   a punta contra MySQL real, y corren en el CI.
+
+## Reversión
+
+Revertir este cambio es revertir el merge en **ambos repos a la vez**; no hace falta tocar la base.
+El esquema nuevo es compatible con el código anterior: se verificó levantando el código previo sobre
+una base ya migrada (login con el rol renombrado, alta/edición/baja de usuarios —también de uno con
+`distrito_id` asignado—, congregantes y reportes), sin errores.
+
+Dos condiciones:
+
+- **Los repos van juntos.** El frontend nuevo depende de `rol` en `/auth/me` para armar el menú; con
+  el backend anterior mostraría un panel vacío.
+- **El código anterior no tiene autorización.** Todo usuario con sesión vuelve a poder hacerlo todo,
+  incluidos los obispos distritales creados después del despliegue y el Editor. Antes de revertir,
+  hay que desactivar las cuentas que no deban tener acceso total.
+
+La reversión del esquema (opcional, destructiva para la auditoría) está comentada al final de
+`docs/sql/2026-11-sprint-1-roles-alcance-auditoria.sql`.
