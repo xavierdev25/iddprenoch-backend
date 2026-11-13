@@ -2,7 +2,6 @@ import { app } from './app';
 import { env } from './config/env';
 import { prisma } from './db/prisma';
 import { logger } from './utils/logger';
-import { montarSocketSpike } from './spike/realtime.spike';
 
 async function main() {
   try {
@@ -19,8 +18,12 @@ async function main() {
     logger.info(`Servidor escuchando en http://localhost:${env.PORT} (${env.NODE_ENV})`);
   });
 
-  // Socket.IO comparte el servidor HTTP de Express (mismo proceso de Passenger). Solo con el spike.
-  if (env.SPIKE_TOKEN) montarSocketSpike(server, env.SPIKE_TOKEN);
+  // Socket.IO comparte el servidor HTTP de Express (mismo proceso de Passenger). Solo con el spike,
+  // y con import diferido: sin SPIKE_TOKEN, `socket.io` ni siquiera se carga (ver socket.spike.ts).
+  if (env.SPIKE_TOKEN) {
+    const { montarSocketSpike } = await import('./spike/socket.spike');
+    montarSocketSpike(server, env.SPIKE_TOKEN);
+  }
 }
 
 main();

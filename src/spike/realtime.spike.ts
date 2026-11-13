@@ -1,7 +1,7 @@
-import type { Server as HttpServer } from 'node:http';
 import { NextFunction, Request, Response, Router } from 'express';
-import { Server as IoServer } from 'socket.io';
-import { logger } from '../utils/logger';
+// Solo el tipo: este módulo lo importa app.ts siempre, y `socket.io` no debe cargarse si el spike
+// está apagado (ver socket.spike.ts).
+import type { Server as IoServer } from 'socket.io';
 import { PAGINA_SPIKE, SCRIPT_SPIKE } from './pagina.spike';
 
 /**
@@ -26,6 +26,11 @@ setInterval(() => {
 }, 30_000).unref();
 
 let io: IoServer | undefined;
+
+/** Lo llama socket.spike.ts al montar Socket.IO, para que /info pueda contar las conexiones. */
+export function registrarIo(servidor: IoServer): void {
+  io = servidor;
+}
 
 /** Sin el token correcto, 404: el spike no anuncia que existe. */
 function exigirToken(token: string) {
@@ -97,40 +102,4 @@ export function spikeRouter(token: string): Router {
   });
 
   return router;
-}
-
-/** (a) y (b): Socket.IO en el mismo proceso que Express, con respaldo a long polling. */
-export function montarSocketSpike(server: HttpServer, token: string): IoServer {
-  io = new IoServer(server, { path: SOCKET_PATH });
-
-  io.use((socket, next) => {
-    if (socket.handshake.auth?.token === token) next();
-    else next(new Error('no autorizado'));
-  });
-
-  io.on('connection', (socket) => {
-    socket.join('spike');
-    socket.emit('spike:hola', { pid: process.pid, transporte: socket.conn.transport.name });
-    socket.conn.once('upgrade', (transporte: { name: string }) => {
-      socket.emit('spike:upgrade', { pid: process.pid, transporte: transporte.name });
-    });
-
-    socket.on('spike:ping', (t: number, ack?: (r: unknown) => void) => {
-      ack?.({ t, pid: process.pid, transporte: socket.conn.transport.name });
-    });
-
-    // Difusión a todos los conectados: mide cuánto tarda un evento del servidor en llegar (el
-    // equivalente a "voto registrado → panel actualizado"). `t` es el reloj del cliente emisor,
-    // así quien mide la latencia la calcula con su propio reloj y no depende del del servidor.
-    let ultima = 0;
-    socket.on('spike:difundir', (t: number) => {
-      const ahora = Date.now();
-      if (ahora - ultima < 500) return; // Sin esto, un cliente podría saturar a todos los demás.
-      ultima = ahora;
-      io!.to('spike').emit('spike:difusion', { t, pid: process.pid });
-    });
-  });
-
-  logger.warn({ path: SOCKET_PATH }, 'Spike de tiempo real ACTIVO (SPIKE_TOKEN definido)');
-  return io;
 }
