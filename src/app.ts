@@ -25,6 +25,12 @@ import { spikeRouter } from './spike/realtime.spike';
 
 export const app = express();
 
+// En el hosting, Apache le pasa cada request a Passenger por loopback: sin esto `req.ip` es
+// 127.0.0.1 para todos (medido en el spike, ADR-028), el rate limiter del login se vuelve uno solo
+// para toda la región y la auditoría no registra la IP real. Se confía solo en el proxy local:
+// Express toma la IP que Apache agregó al final de X-Forwarded-For, no la que mande el cliente.
+app.set('trust proxy', 'loopback');
+
 app.use(helmet());
 app.use(compression());
 app.use(pinoHttp({ logger }));

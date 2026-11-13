@@ -11,6 +11,7 @@ import { catalogos, cliente, levantarApi } from './helpers';
 
 let server: Server;
 let pedir: ReturnType<typeof cliente>;
+let baseUrl: string;
 
 type U = { id: number; nombre: string; rolId: number };
 let responsable: U, regional: U, distrital: U, editor: U, inactivo: U, sinDistrito: U, secretario: U;
@@ -60,6 +61,7 @@ beforeAll(async () => {
 
   const api = await levantarApi();
   server = api.server;
+  baseUrl = api.base;
   pedir = cliente(api.base);
 });
 
@@ -253,6 +255,19 @@ describe('HU05 — auditoría', () => {
     expect(bueno.status).toBe(200);
     expect(bueno.body).toMatchObject({ rol: 'Obispo distrital', distritoId: distA });
     expect(await prisma.auditoria.count({ where: { accion: 'LOGIN', resultado: 'PERMITIDO', usuarioId: distrital.id } })).toBe(1);
+  });
+
+  // Detrás de Apache/Passenger todas las requests llegan desde 127.0.0.1; la IP real viene en
+  // X-Forwarded-For. Estas pruebas también llegan por loopback, igual que en el hosting.
+  it('registra la IP real del cliente que informa el proxy local', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '203.0.113.7' },
+      body: JSON.stringify({ nombre: 'ip.prueba', password: 'x' }),
+    });
+    expect(res.status).toBe(401);
+    const fila = await prisma.auditoria.findFirst({ where: { usuarioNombre: 'ip.prueba' } });
+    expect(fila?.ip).toBe('203.0.113.7');
   });
 
   it('solo el Responsable la consulta, filtrando por resultado', async () => {
