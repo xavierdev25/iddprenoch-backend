@@ -19,6 +19,8 @@ import { cargosRouter } from './modules/cargos/cargos.routes';
 import { catalogosRouter } from './modules/catalogos/catalogos.routes';
 import { reportesRouter } from './modules/reportes/reportes.routes';
 import { notFoundHandler, errorHandler } from './middlewares/error.middleware';
+import { env } from './config/env';
+import { spikeRouter } from './spike/realtime.spike';
 
 export const app = express();
 
@@ -50,6 +52,11 @@ app.use('/api/comunicados', comunicadosRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/cargos', cargosRouter);
 app.use('/api/reportes', reportesRouter);
+// Spike de tiempo real (ADR-028): apagado salvo que SPIKE_TOKEN esté definido. Va antes de
+// catalogosRouter, que está montado en '/api' y exige sesión a todo lo que pase por él.
+if (env.SPIKE_TOKEN) {
+  app.use('/api/spike', spikeRouter(env.SPIKE_TOKEN));
+}
 app.use('/api', catalogosRouter);
 
 app.use(notFoundHandler);

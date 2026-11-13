@@ -2,6 +2,7 @@ import { app } from './app';
 import { env } from './config/env';
 import { prisma } from './db/prisma';
 import { logger } from './utils/logger';
+import { montarSocketSpike } from './spike/realtime.spike';
 
 async function main() {
   try {
@@ -14,9 +15,12 @@ async function main() {
     process.exit(1);
   }
 
-  app.listen(env.PORT, () => {
+  const server = app.listen(env.PORT, () => {
     logger.info(`Servidor escuchando en http://localhost:${env.PORT} (${env.NODE_ENV})`);
   });
+
+  // Socket.IO comparte el servidor HTTP de Express (mismo proceso de Passenger). Solo con el spike.
+  if (env.SPIKE_TOKEN) montarSocketSpike(server, env.SPIKE_TOKEN);
 }
 
 main();
