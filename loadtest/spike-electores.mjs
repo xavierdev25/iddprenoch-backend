@@ -3,8 +3,13 @@
  * Spike (c): N electores consultando GET /api/spike/estado cada 3 s ± 1 s (ADR-028).
  *
  * La carga sube por escalones (por defecto 25 → 50 → 100 → 150 → 200 electores, 60 s cada uno) y el
- * script se DETIENE en cuanto aparece un 508 (límite de Entry Processes de CloudLinux) o si más del
- * 5 % de las respuestas de un escalón son 5xx: es el sitio en producción y no hay que tumbarlo.
+ * script se DETIENE ante el PRIMER error de cualquier tipo: es el sitio en producción, y una IP
+ * bloqueada por el firewall del hosting dejaría sin acceso al propio administrador. Solo 200 y 304
+ * cuentan como respuesta correcta. Los errores se separan por origen:
+ *   - limiteApp:     429 (rate limiter de la API; las rutas del spike no lo usan, ver ADR-028)
+ *   - limiteHosting: 503 / 508 (Entry Processes de CloudLinux, Passenger saturado)
+ *   - conexion:      timeout, conexión rechazada o cortada (típico de un bloqueo de firewall)
+ *   - otros:         cualquier otro código (403 de mod_security, 404, 500…)
  *
  * Uso (de madrugada):
  *   node loadtest/spike-electores.mjs --url https://iddprenoch.com --token <SPIKE_TOKEN>
@@ -23,7 +28,15 @@ const URL_BASE = (args.url ?? 'http://localhost:3000').replace(/\/$/, '');
 const TOKEN = args.token;
 const ESCALONES = (args.escalones ?? '25,50,100,150,200').split(',').map(Number);
 const DURACION_S = Number(args.duracion ?? 60);
-const UMBRAL_5XX = 0.05;
+
+/** Clasifica un código HTTP o un error de red por su origen probable. */
+function categoria(codigo) {
+  if (codigo === 200 || codigo === 304) return 'ok';
+  if (codigo === 429) return 'limiteApp';
+  if (codigo === 503 || codigo === 508) return 'limiteHosting';
+  if (typeof codigo === 'string') return 'conexion';
+  return 'otros';
+}
 
 if (!TOKEN) {
   console.error('Falta --token (el SPIKE_TOKEN configurado en cPanel).');
@@ -39,6 +52,14 @@ const percentil = (arr, q) => {
 
 let detener = false;
 let motivoParada = '';
+
+function parar(motivo) {
+  if (!detener) {
+    detener = true;
+    motivoParada = motivo;
+    console.log(`\n■ PARADA INMEDIATA: ${motivo}`);
+  }
+}
 
 /** Un elector: consulta, espera 3 s ± 1 s, repite. Guarda en `m` lo que observa. */
 async function elector(m, hasta) {
@@ -62,13 +83,12 @@ async function elector(m, hasta) {
       const msServidor = Number(res.headers.get('x-spike-ms'));
       if (!Number.isNaN(msServidor)) m.msServidor.push(msServidor);
       etag = res.headers.get('etag') ?? etag;
-      if (res.status === 508) {
-        detener = true;
-        motivoParada = '508 Resource Limit Is Reached (Entry Processes)';
-      }
+      if (categoria(res.status) !== 'ok') parar(`HTTP ${res.status} (${categoria(res.status)})`);
     } catch (err) {
-      m.codigos[err.name === 'TimeoutError' ? 'timeout' : 'red'] =
-        (m.codigos[err.name === 'TimeoutError' ? 'timeout' : 'red'] ?? 0) + 1;
+      // fetch envuelve el error de red en `cause` (ECONNREFUSED, ECONNRESET, ETIMEDOUT…).
+      const tipo = err.name === 'TimeoutError' ? 'timeout' : (err.cause?.code ?? 'red');
+      m.codigos[tipo] = (m.codigos[tipo] ?? 0) + 1;
+      parar(`error de conexión: ${tipo}`);
     }
     await dormir(2000 + Math.random() * 2000);
   }
@@ -81,15 +101,19 @@ async function escalon(n) {
   await Promise.all(Array.from({ length: n }, () => elector(m, hasta)));
 
   const total = Object.values(m.codigos).reduce((a, b) => a + b, 0);
-  const errores5xx = Object.entries(m.codigos)
-    .filter(([c]) => /^5\d\d$/.test(c))
-    .reduce((a, [, v]) => a + v, 0);
-  const fallos = errores5xx + (m.codigos.timeout ?? 0) + (m.codigos.red ?? 0);
+  const errores = { limiteApp: 0, limiteHosting: 0, conexion: 0, otros: 0 };
+  for (const [codigo, cantidad] of Object.entries(m.codigos)) {
+    const cat = categoria(/^\d+$/.test(codigo) ? Number(codigo) : codigo);
+    if (cat !== 'ok') errores[cat] += cantidad;
+  }
+  const fallos = Object.values(errores).reduce((a, b) => a + b, 0);
   const resumen = {
     electores: n,
+    completo: !detener,
     peticiones: total,
     porSegundo: +(total / DURACION_S).toFixed(1),
     codigos: m.codigos,
+    errores,
     tasaFallos: total ? +(fallos / total).toFixed(4) : 0,
     msCliente: {
       p50: +percentil(m.latencias, 0.5).toFixed(0),
@@ -103,10 +127,6 @@ async function escalon(n) {
   };
   console.log(JSON.stringify(resumen));
   if (resumen.pids.length > 1) console.log('  ⚠ Más de un pid: Passenger está usando varios procesos.');
-  if (!detener && total && errores5xx / total > UMBRAL_5XX) {
-    detener = true;
-    motivoParada = `más del ${UMBRAL_5XX * 100} % de respuestas 5xx con ${n} electores`;
-  }
   return resumen;
 }
 

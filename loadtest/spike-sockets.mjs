@@ -18,8 +18,13 @@ const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const clientes = Array.from({ length: N }, () => {
   const c = { inicial: '?', actual: '?', pids: new Set(), latencias: [] };
-  c.socket = io(URL_BASE, { path: '/api/socket.io', auth: { token: args.token } });
-  c.socket.on('connect_error', (e) => console.log('connect_error:', e.message));
+  // Sin reconexión: ante un error se detiene todo (mismo criterio que spike-electores.mjs).
+  c.socket = io(URL_BASE, { path: '/api/socket.io', auth: { token: args.token }, reconnection: false });
+  c.socket.on('connect_error', (e) => {
+    console.log('■ PARADA: connect_error:', e.message);
+    clientes.forEach((x) => x.socket?.close());
+    process.exit(3);
+  });
   c.socket.on('spike:hola', (d) => {
     c.inicial = d.transporte;
     c.pids.add(d.pid);
@@ -36,6 +41,11 @@ const clientes = Array.from({ length: N }, () => {
 });
 
 await dormir(8000);
+if (!clientes.every((c) => c.socket.connected)) {
+  console.log('■ PARADA: no todos los clientes lograron conectarse en 8 s.');
+  clientes.forEach((c) => c.socket.close());
+  process.exit(3);
+}
 console.log('Transporte por cliente (inicial → actual):', clientes.map((c) => `${c.inicial} → ${c.actual}`).join(', '));
 
 for (let i = 0; i < 20; i++) {
