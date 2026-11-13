@@ -25,8 +25,17 @@ async function seedCatalogs() {
   ];
   await prisma.cargo.createMany({ data: cargos.map((nombre) => ({ nombre })), skipDuplicates: true });
 
+  // Los tres primeros más Editor tienen permisos (src/utils/permisos.ts). Secretario y Tesorero
+  // Regional se conservan porque existen en producción, pero hoy no tienen ningún permiso.
   await prisma.rol.createMany({
-    data: ['Administrador Regional', 'Secretario Regional', 'Tesorero Regional', 'Editor'].map((nombre) => ({ nombre })),
+    data: [
+      'Responsable del sistema',
+      'Obispo regional',
+      'Obispo distrital',
+      'Editor',
+      'Secretario Regional',
+      'Tesorero Regional',
+    ].map((nombre) => ({ nombre })),
     skipDuplicates: true,
   });
 
@@ -257,23 +266,33 @@ async function seedEventosYComunicados() {
   }
 }
 
-async function seedAdminUsuario() {
-  const rolAdmin = await prisma.rol.findUniqueOrThrow({ where: { nombre: 'Administrador Regional' } });
+async function seedUsuarios() {
   const estadoActivo = await prisma.estadoUsuario.findUniqueOrThrow({ where: { nombre: 'Activo' } });
+  const huaral = await prisma.distrito.findUniqueOrThrow({ where: { nombre: 'Huaral' } });
 
-  const passwordHash = await bcrypt.hash('admin123', BCRYPT_COST_FACTOR);
+  // Un usuario por rol con permisos, para probar la matriz a mano. Claves solo de desarrollo.
+  const usuarios = [
+    { nombre: 'admin', email: 'admin@iddp.pe', password: 'admin123', rol: 'Responsable del sistema', distritoId: null },
+    { nombre: 'obispo.regional', email: undefined, password: 'regional123', rol: 'Obispo regional', distritoId: null },
+    { nombre: 'obispo.huaral', email: undefined, password: 'distrital123', rol: 'Obispo distrital', distritoId: huaral.id },
+    { nombre: 'editor', email: undefined, password: 'editor123', rol: 'Editor', distritoId: null },
+  ];
 
-  await prisma.usuario.upsert({
-    where: { nombre: 'admin' },
-    update: {},
-    create: {
-      nombre: 'admin',
-      email: 'admin@iddp.pe',
-      passwordHash,
-      rolId: rolAdmin.id,
-      estadoId: estadoActivo.id,
-    },
-  });
+  for (const u of usuarios) {
+    const rol = await prisma.rol.findUniqueOrThrow({ where: { nombre: u.rol } });
+    await prisma.usuario.upsert({
+      where: { nombre: u.nombre },
+      update: {},
+      create: {
+        nombre: u.nombre,
+        email: u.email,
+        passwordHash: await bcrypt.hash(u.password, BCRYPT_COST_FACTOR),
+        rolId: rol.id,
+        estadoId: estadoActivo.id,
+        distritoId: u.distritoId,
+      },
+    });
+  }
 }
 
 async function main() {
@@ -282,7 +301,7 @@ async function main() {
   await seedLideres();
   await seedCongregantes();
   await seedEventosYComunicados();
-  await seedAdminUsuario();
+  await seedUsuarios();
   console.log('Seed completado.');
 }
 

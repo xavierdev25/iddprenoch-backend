@@ -12,6 +12,7 @@ model Distrito {
   id       Int       @id @default(autoincrement())
   nombre   String    @unique
   iglesias Iglesia[]
+  usuarios Usuario[]
 
   @@map("distritos")
 }
@@ -186,12 +187,48 @@ model Usuario {
   rolId        Int           @map("rol_id")
   estado       EstadoUsuario @relation(fields: [estadoId], references: [id])
   estadoId     Int           @map("estado_id")
+  // Alcance territorial. Null para los roles de alcance regional; obligatorio para el obispo
+  // distrital (lo valida usuarios.service, no la base: depende del nombre del rol). Restrict y no
+  // el SetNull por defecto: borrar el distrito dejaría a su obispo sin alcance definido.
+  distrito     Distrito?     @relation(fields: [distritoId], references: [id], onDelete: Restrict)
+  distritoId   Int?          @map("distrito_id")
+  auditoria    Auditoria[]
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
   @@index([rolId])
   @@index([estadoId])
+  @@index([distritoId])
   @@map("usuarios")
+}
+
+enum ResultadoAuditoria {
+  PERMITIDO
+  DENEGADO
+}
+
+// Registro de logins, cambios de membresía y de usuarios, y accesos denegados. Se conserva 12
+// meses (Ley 29733, ver ADR-027): utils/auditoria.ts borra a diario lo más antiguo.
+model Auditoria {
+  id            Int                @id @default(autoincrement())
+  // SetNull: borrar un usuario no debe borrar el rastro de lo que hizo.
+  usuario       Usuario?           @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuarioId     Int?               @map("usuario_id")
+  // Copia del nombre al momento del evento: identifica un login fallido (sin usuario) y sobrevive
+  // al borrado o renombre de la cuenta.
+  usuarioNombre String?            @map("usuario_nombre") @db.VarChar(255)
+  accion        String             @db.VarChar(40)
+  recurso       String             @db.VarChar(255)
+  resultado     ResultadoAuditoria
+  // Qué cambió, en texto: nombres de campos, nunca sus valores personales (DNI, teléfono...).
+  detalle       String?            @db.Text
+  ip            String?            @db.VarChar(45)
+  fecha         DateTime           @default(now())
+
+  @@index([fecha])
+  @@index([usuarioId])
+  @@index([resultado])
+  @@map("auditoria")
 }
 
 model Sexo {
