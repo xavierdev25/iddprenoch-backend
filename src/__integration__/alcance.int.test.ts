@@ -270,3 +270,12 @@ describe('HU05 — auditoría', () => {
     expect(filas.every((f) => !f.recurso.includes('10000002') && !(f.detalle ?? '').includes('10000002'))).toBe(true);
   });
 });
+
+describe('Catálogo de roles', () => {
+  it('oculta del selector los roles sin permisos (Secretario y Tesorero)', async () => {
+    const r = await pedir('GET', '/api/roles', { como: responsable });
+    const nombres = r.body.map((x: { nombre: string }) => x.nombre);
+    expect(nombres).toEqual(expect.arrayContaining(['Responsable del sistema', 'Obispo regional', 'Obispo distrital', 'Editor']));
+    expect(nombres).not.toContain('Secretario Regional');
+  });
+});
