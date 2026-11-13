@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
 
 const prisma = new PrismaClient();
 const BCRYPT_COST_FACTOR = 12;
@@ -270,12 +271,18 @@ async function seedUsuarios() {
   const estadoActivo = await prisma.estadoUsuario.findUniqueOrThrow({ where: { nombre: 'Activo' } });
   const huaral = await prisma.distrito.findUniqueOrThrow({ where: { nombre: 'Huaral' } });
 
-  // Un usuario por rol con permisos, para probar la matriz a mano. Claves solo de desarrollo.
+  // Un usuario por rol con permisos, para probar la matriz a mano. La clave sale de SEED_PASSWORD
+  // (.env); sin ella se genera una al azar y se muestra una sola vez. Nunca una clave fija en el
+  // repo: es público, y una base sembrada con una clave conocida queda abierta a cualquiera.
+  const password = process.env.SEED_PASSWORD || randomBytes(9).toString('base64url');
+  if (!process.env.SEED_PASSWORD) {
+    console.log(`SEED_PASSWORD no está definida: clave generada para los usuarios del seed: ${password}`);
+  }
   const usuarios = [
-    { nombre: 'admin', email: 'admin@iddp.pe', password: 'admin123', rol: 'Responsable del sistema', distritoId: null },
-    { nombre: 'obispo.regional', email: undefined, password: 'regional123', rol: 'Obispo regional', distritoId: null },
-    { nombre: 'obispo.huaral', email: undefined, password: 'distrital123', rol: 'Obispo distrital', distritoId: huaral.id },
-    { nombre: 'editor', email: undefined, password: 'editor123', rol: 'Editor', distritoId: null },
+    { nombre: 'admin', email: 'admin@iddp.pe', rol: 'Responsable del sistema', distritoId: null },
+    { nombre: 'obispo.regional', email: undefined, rol: 'Obispo regional', distritoId: null },
+    { nombre: 'obispo.huaral', email: undefined, rol: 'Obispo distrital', distritoId: huaral.id },
+    { nombre: 'editor', email: undefined, rol: 'Editor', distritoId: null },
   ];
 
   for (const u of usuarios) {
@@ -286,7 +293,7 @@ async function seedUsuarios() {
       create: {
         nombre: u.nombre,
         email: u.email,
-        passwordHash: await bcrypt.hash(u.password, BCRYPT_COST_FACTOR),
+        passwordHash: await bcrypt.hash(password, BCRYPT_COST_FACTOR),
         rolId: rol.id,
         estadoId: estadoActivo.id,
         distritoId: u.distritoId,
