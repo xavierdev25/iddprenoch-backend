@@ -32,3 +32,22 @@ describe('updateUsuarioSchema — password opcional', () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe('distritoId', () => {
+  it('es opcional al crear', () => {
+    expect(createUsuarioSchema.safeParse({ ...validBase, password: 'password123' }).success).toBe(true);
+  });
+
+  // El select del formulario manda '' cuando no se elige distrito: equivale a "sin distrito".
+  it('trata el select vacío como null', () => {
+    const r = updateUsuarioSchema.safeParse({ distritoId: '' });
+    expect(r.success && r.data.distritoId).toBeNull();
+  });
+
+  it('distingue null (quitar distrito) de ausente (no tocar)', () => {
+    const quitar = updateUsuarioSchema.safeParse({ distritoId: null });
+    const noTocar = updateUsuarioSchema.safeParse({});
+    expect(quitar.success && quitar.data.distritoId).toBeNull();
+    expect(noTocar.success && noTocar.data.distritoId).toBeUndefined();
+  });
+});
