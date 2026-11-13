@@ -16,8 +16,8 @@ headers {
 
 body:json {
   {
-    "nombre": "admin",
-    "password": "admin123"
+    "nombre": "{{process.env.BRUNO_USUARIO}}",
+    "password": "{{process.env.BRUNO_PASSWORD}}"
   }
 }
 
@@ -27,7 +27,7 @@ tests {
   });
 
   test("devuelve el usuario sin el hash de password", function () {
-    expect(res.body).to.have.property("nombre", "admin");
+    expect(res.body).to.have.property("nombre", bru.getProcessEnv("BRUNO_USUARIO"));
     expect(res.body).to.not.have.property("passwordHash");
   });
 }

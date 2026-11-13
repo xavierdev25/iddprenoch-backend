@@ -18,7 +18,7 @@ body:json {
   {
     "nombre": "usuario.prueba.bruno",
     "email": "usuario.prueba@example.com",
-    "password": "clave12345",
+    "password": "{{process.env.BRUNO_PASSWORD_USUARIO_PRUEBA}}",
     "rolId": 4,
     "estadoId": 1
   }
