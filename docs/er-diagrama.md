@@ -23,6 +23,8 @@ erDiagram
     ESTADO_ECLESIAL ||--o{ CONGREGANTE : clasifica
     ROL ||--o{ USUARIO : asigna
     ESTADO_USUARIO ||--o{ USUARIO : asigna
+    DISTRITO ||--o{ USUARIO : "acota (solo Obispo distrital)"
+    USUARIO ||--o{ AUDITORIA : "realiza (nullable)"
 
     DISTRITO {
         int id PK
@@ -135,8 +137,21 @@ erDiagram
         string password_hash "bcryptjs"
         int rol_id FK
         int estado_id FK
+        int distrito_id FK "nullable, ON DELETE RESTRICT (ADR-026)"
         datetime created_at
         datetime updated_at
+    }
+
+    AUDITORIA {
+        int id PK
+        int usuario_id FK "nullable, ON DELETE SET NULL"
+        string usuario_nombre "nullable"
+        string accion
+        string recurso "ruta sin query string"
+        enum resultado "PERMITIDO | DENEGADO"
+        text detalle "nullable"
+        string ip "nullable"
+        datetime fecha "se conserva 12 meses (ADR-027)"
     }
 
     SEXO {
