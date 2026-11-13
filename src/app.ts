@@ -18,6 +18,7 @@ import { usuariosRouter } from './modules/usuarios/usuarios.routes';
 import { cargosRouter } from './modules/cargos/cargos.routes';
 import { catalogosRouter } from './modules/catalogos/catalogos.routes';
 import { reportesRouter } from './modules/reportes/reportes.routes';
+import { auditoriaRouter } from './modules/auditoria/auditoria.routes';
 import { notFoundHandler, errorHandler } from './middlewares/error.middleware';
 
 export const app = express();
@@ -50,6 +51,7 @@ app.use('/api/comunicados', comunicadosRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/cargos', cargosRouter);
 app.use('/api/reportes', reportesRouter);
+app.use('/api/auditoria', auditoriaRouter);
 app.use('/api', catalogosRouter);
 
 app.use(notFoundHandler);
