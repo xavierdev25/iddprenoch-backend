@@ -1,0 +1,24 @@
+# MySQL 8 para desarrollo local y para las pruebas de integración.
+#   docker compose -f docker-compose.dev.yml up -d
+# Puerto 3307 en el host para no chocar con un MySQL instalado localmente en el 3306.
+# root (y no un usuario acotado) porque `prisma migrate dev` necesita crear la shadow database.
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: iddp-mysql-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: iddp_dev
+      MYSQL_DATABASE: iglesia_dev
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - '3307:3306'
+    volumes:
+      - iddp-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-piddp_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  iddp-mysql-data:

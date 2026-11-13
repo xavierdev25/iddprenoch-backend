@@ -10,6 +10,20 @@ jobs:
   ci:
     name: Test & build
     runs-on: ubuntu-latest
+    # MySQL real para las pruebas de integración (control de acceso, y en adelante la votación).
+    # La base de cada corrida la crea y la borra el propio globalSetup; esta solo da el servidor.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci_root"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,6 +33,10 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm test
+      - name: Pruebas de integración (MySQL)
+        run: npm run test:integration
+        env:
+          TEST_DATABASE_URL: mysql://root:ci_root@127.0.0.1:3306/iglesia_test
       - run: npm run build
 
   deploy:
