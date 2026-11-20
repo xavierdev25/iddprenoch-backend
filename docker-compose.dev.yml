@@ -1,25 +1,26 @@
-# MySQL 8 para desarrollo local y para las pruebas de integración.
+# MariaDB 10.11 (la misma versión del hosting, ADR-031) para desarrollo y pruebas de integración.
 #   docker compose -f docker-compose.dev.yml up -d
-# Puerto 3307 en el host para no chocar con un MySQL instalado localmente en el 3306.
+# Puerto 3307 en el host para no chocar con un MySQL o MariaDB instalado localmente en el 3306.
 # root (y no un usuario acotado) porque `prisma migrate dev` necesita crear la shadow database.
 # La clave se toma de DEV_MYSQL_ROOT_PASSWORD en el .env (docker compose lo lee solo).
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: iddp-mysql-dev
+  mariadb:
+    image: mariadb:10.11
+    container_name: iddp-mariadb-dev
     environment:
-      MYSQL_ROOT_PASSWORD: ${DEV_MYSQL_ROOT_PASSWORD:?Define DEV_MYSQL_ROOT_PASSWORD en .env}
-      MYSQL_DATABASE: iglesia_dev
+      MARIADB_ROOT_PASSWORD: ${DEV_MYSQL_ROOT_PASSWORD:?Define DEV_MYSQL_ROOT_PASSWORD en .env}
+      MARIADB_DATABASE: iglesia_dev
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     ports:
       - '3307:3306'
     volumes:
-      - iddp-mysql-data:/var/lib/mysql
+      # Volumen distinto al del antiguo contenedor MySQL 8: sus archivos no son compatibles.
+      - iddp-mariadb-data:/var/lib/mysql
     healthcheck:
-      test: ['CMD-SHELL', 'mysqladmin ping -h localhost -p"$$MYSQL_ROOT_PASSWORD"']
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
       interval: 5s
       timeout: 5s
       retries: 20
 
 volumes:
-  iddp-mysql-data:
+  iddp-mariadb-data:

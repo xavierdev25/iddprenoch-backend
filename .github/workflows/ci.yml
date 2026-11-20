@@ -10,17 +10,18 @@ jobs:
   ci:
     name: Test & build
     runs-on: ubuntu-latest
-    # MySQL real para las pruebas de integración (control de acceso, y en adelante la votación).
+    # MariaDB 10.11, la MISMA versión que el hosting (ADR-031): con MySQL 8 pasaron pruebas que en
+    # producción habrían fallado (p. ej. `SELECT … FOR SHARE`, que MariaDB no acepta).
     # La base de cada corrida la crea y la borra el propio globalSetup; esta solo da el servidor.
     services:
-      mysql:
-        image: mysql:8.0
+      mariadb:
+        image: mariadb:10.11
         env:
-          MYSQL_ROOT_PASSWORD: ci_root
+          MARIADB_ROOT_PASSWORD: ci_root
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h localhost -pci_root"
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=20
@@ -33,7 +34,7 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm test
-      - name: Pruebas de integración (MySQL)
+      - name: Pruebas de integración (MariaDB 10.11)
         run: npm run test:integration
         env:
           TEST_DATABASE_URL: mysql://root:ci_root@127.0.0.1:3306/iglesia_test
