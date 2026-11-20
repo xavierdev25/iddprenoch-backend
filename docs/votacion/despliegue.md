@@ -31,7 +31,7 @@ reintento exitoso. Es inofensivo para el despliegue manual: no hace falta tocarl
 ## 2. Código (lo hago yo, al recibir "SQL 2–4 listo")
 
 1. Integrar `feat/sprint-4-pruebas` (que contiene los Sprints 2, 3 y 4) en `main`, en ambos
-   repositorios, con el CI en verde: tsc, pruebas unitarias, pruebas de integración contra MySQL y
+   repositorios, con el CI en verde: tsc, pruebas unitarias, pruebas de integración contra MariaDB 10.11 y
    build.
 2. El CI despliega solo por FTP y reinicia Passenger (`tmp/restart.txt`).
 3. **No hace falta "Run NPM Install"**. La única dependencia nueva de producción del backend,
