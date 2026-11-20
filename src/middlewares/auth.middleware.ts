@@ -5,9 +5,45 @@ import { prisma } from '../db/prisma';
 import { ApiError } from '../utils/ApiError';
 import { auditar } from '../utils/auditoria';
 import { Permiso, tienePermiso } from '../utils/permisos';
-import { JwtPayload } from '../types/express';
+import { AuthUser, JwtPayload } from '../types/express';
 
 export const AUTH_COOKIE_NAME = 'auth_token';
+
+/** Payload de un token de administrador válido, o null (sin token, vencido o mal firmado). */
+export function verificarTokenAdmin(token: string | undefined): JwtPayload | null {
+  if (!token) return null;
+  try {
+    return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rol, distrito y estado del usuario, leídos de la base. null si no existe o no está activo.
+ * Lo usan `requireAuth` y el handshake de Socket.IO del panel (realtime/socket.ts).
+ */
+export async function usuarioActivo(id: number): Promise<AuthUser | null> {
+  const usuario = await prisma.usuario.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      nombre: true,
+      rolId: true,
+      distritoId: true,
+      rol: { select: { nombre: true } },
+      estado: { select: { nombre: true } },
+    },
+  });
+  if (!usuario || usuario.estado.nombre !== 'Activo') return null;
+  return {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    rolId: usuario.rolId,
+    rol: usuario.rol.nombre,
+    distritoId: usuario.distritoId,
+  };
+}
 
 /**
  * Verifica el JWT y resuelve el usuario desde la base (ADR-026).
@@ -21,39 +57,18 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
     next(new ApiError(401, 'No autenticado'));
     return;
   }
-
-  let payload: JwtPayload;
-  try {
-    payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-  } catch {
+  const payload = verificarTokenAdmin(token);
+  if (!payload) {
     next(new ApiError(401, 'Sesión inválida o expirada'));
     return;
   }
-
-  prisma.usuario
-    .findUnique({
-      where: { id: payload.id },
-      select: {
-        id: true,
-        nombre: true,
-        rolId: true,
-        distritoId: true,
-        rol: { select: { nombre: true } },
-        estado: { select: { nombre: true } },
-      },
-    })
+  usuarioActivo(payload.id)
     .then((usuario) => {
-      if (!usuario || usuario.estado.nombre !== 'Activo') {
+      if (!usuario) {
         next(new ApiError(401, 'Sesión inválida o usuario inactivo'));
         return;
       }
-      req.user = {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        rolId: usuario.rolId,
-        rol: usuario.rol.nombre,
-        distritoId: usuario.distritoId,
-      };
+      req.user = usuario;
       next();
     })
     .catch(next);
