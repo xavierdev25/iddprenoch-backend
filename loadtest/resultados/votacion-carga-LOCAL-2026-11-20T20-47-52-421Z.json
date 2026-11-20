@@ -1,0 +1,144 @@
+{
+  "url": "http://localhost:3000",
+  "electores": 200,
+  "inicio": "2026-11-20T20:47:52.421Z",
+  "fin": "2026-11-20T20:49:52.507Z",
+  "detenido": null,
+  "votosAceptados": 200,
+  "errores": {
+    "limiteApp": 0,
+    "limiteHosting": 0,
+    "conexion": 0,
+    "otros": 0
+  },
+  "verificacion": {
+    "votosAceptadosPorElCliente": 200,
+    "emisionesEnServidor": 200,
+    "votosContadosEnServidor": 200,
+    "cuadra": true,
+    "porCandidatoCuadra": true
+  },
+  "operaciones": {
+    "admin.login": {
+      "peticiones": 1,
+      "codigos": {
+        "200": 1
+      },
+      "ms": {
+        "p50": 260,
+        "p95": 260,
+        "p99": 260,
+        "max": 260
+      }
+    },
+    "admin.preparar": {
+      "peticiones": 5,
+      "codigos": {
+        "201": 5
+      },
+      "ms": {
+        "p50": 7,
+        "p95": 13,
+        "p99": 13,
+        "max": 13
+      }
+    },
+    "admin.padron": {
+      "peticiones": 200,
+      "codigos": {
+        "201": 200
+      },
+      "ms": {
+        "p50": 28,
+        "p95": 32,
+        "p99": 34,
+        "max": 49
+      }
+    },
+    "admin.acreditar": {
+      "peticiones": 200,
+      "codigos": {
+        "200": 200
+      },
+      "ms": {
+        "p50": 33,
+        "p95": 47,
+        "p99": 59,
+        "max": 63
+      }
+    },
+    "elector.ingresar": {
+      "peticiones": 200,
+      "codigos": {
+        "200": 200
+      },
+      "ms": {
+        "p50": 28,
+        "p95": 43,
+        "p99": 52,
+        "max": 55
+      }
+    },
+    "elector.estado": {
+      "peticiones": 4694,
+      "codigos": {
+        "200": 600,
+        "304": 4094
+      },
+      "ms": {
+        "p50": 2,
+        "p95": 4,
+        "p99": 15,
+        "max": 46
+      }
+    },
+    "admin.abrir": {
+      "peticiones": 1,
+      "codigos": {
+        "200": 1
+      },
+      "ms": {
+        "p50": 48,
+        "p95": 48,
+        "p99": 48,
+        "max": 48
+      }
+    },
+    "elector.cedula": {
+      "peticiones": 200,
+      "codigos": {
+        "200": 200
+      },
+      "ms": {
+        "p50": 2,
+        "p95": 4,
+        "p99": 5,
+        "max": 6
+      }
+    },
+    "elector.votar": {
+      "peticiones": 200,
+      "codigos": {
+        "201": 200
+      },
+      "ms": {
+        "p50": 14,
+        "p95": 21,
+        "p99": 25,
+        "max": 27
+      }
+    },
+    "admin.cerrar": {
+      "peticiones": 1,
+      "codigos": {
+        "200": 1
+      },
+      "ms": {
+        "p50": 46,
+        "p95": 46,
+        "p99": 46,
+        "max": 46
+      }
+    }
+  }
+}
