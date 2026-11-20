@@ -121,7 +121,7 @@ export async function generarActa(asambleaId: number): Promise<Buffer> {
   doc.moveDown(1).fontSize(9).fillColor(GRIS).text(
     'El voto es secreto: el sistema registra por separado quién votó y los votos, sin ningún dato que permita ' +
       'relacionarlos. Documento generado por la plataforma de votación electrónica de iddprenoch.com el ' +
-      `${fh(new Date())}.`,
+      `${fh(new Date())}`,
     50,
     doc.y,
     { width: ancho },
