@@ -25,7 +25,8 @@ El voto se reparte en dos tablas que no se pueden unir:
 
 Emitir es una transacción `Emision + Voto`. El UNIQUE de `emisiones` es la única defensa contra el
 doble voto: dos pedidos simultáneos chocan ahí, el segundo recibe P2002 y responde "ya votaste".
-La elección se lee con `SELECT … FOR SHARE` dentro de la transacción. Así, un voto en curso y el
+La elección se lee con `SELECT … LOCK IN SHARE MODE` dentro de la transacción (no `FOR SHARE`, que
+MariaDB 10.11 —el motor del hosting— no acepta; ver ADR-031). Así, un voto en curso y el
 cierre (un UPDATE de esa fila) no se cruzan, y el conteo al cierre es exacto.
 
 El cargo de la elección es texto libre: no reutiliza el modelo `Cargo` de los pastores.
