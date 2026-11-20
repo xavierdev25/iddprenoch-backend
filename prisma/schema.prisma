@@ -9,10 +9,11 @@ datasource db {
 }
 
 model Distrito {
-  id       Int       @id @default(autoincrement())
-  nombre   String    @unique
-  iglesias Iglesia[]
-  usuarios Usuario[]
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  iglesias  Iglesia[]
+  usuarios  Usuario[]
+  asambleas Asamblea[]
 
   @@map("distritos")
 }
@@ -35,6 +36,7 @@ model Iglesia {
   pastores     Pastor[]
   lideres      Lider[]
   congregantes Congregante[]
+  electores    Elector[]
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
@@ -253,4 +255,132 @@ model EstadoEclesial {
   congregantes Congregante[]
 
   @@map("estado_eclesial")
+}
+
+// ─── Votación electrónica en asambleas presenciales (ADR-029) ──────────────────────────────────
+
+enum TipoAsamblea {
+  REGIONAL
+  DISTRITAL
+}
+
+enum EstadoAsamblea {
+  PROGRAMADA
+  EN_CURSO
+  FINALIZADA
+}
+
+enum EstadoEleccion {
+  PENDIENTE
+  ABIERTA
+  CERRADA
+}
+
+model Asamblea {
+  id           Int            @id @default(autoincrement())
+  nombre       String
+  tipo         TipoAsamblea
+  // Solo las DISTRITALES tienen distrito: es lo que acota al obispo distrital (ADR-026).
+  distrito     Distrito?      @relation(fields: [distritoId], references: [id], onDelete: Restrict)
+  distritoId   Int?           @map("distrito_id")
+  fecha        DateTime
+  // Va en el QR y en la URL /votar/:codigo. Aleatorio y sin caracteres ambiguos (0/O, 1/I).
+  codigoAcceso String         @unique @map("codigo_acceso") @db.VarChar(12)
+  estado       EstadoAsamblea @default(PROGRAMADA)
+  elecciones   Eleccion[]
+  electores    Elector[]
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  @@index([distritoId])
+  @@map("asambleas")
+}
+
+// No reutiliza el modelo Cargo (cargos pastorales): el cargo de una elección es texto libre.
+model Eleccion {
+  id          Int            @id @default(autoincrement())
+  asamblea    Asamblea       @relation(fields: [asambleaId], references: [id], onDelete: Cascade)
+  asambleaId  Int            @map("asamblea_id")
+  cargo       String
+  ronda       Int            @default(1)
+  estado      EstadoEleccion @default(PENDIENTE)
+  // Métricas para el informe (CSV sin datos personales): apertura, cierre y publicación.
+  abiertaEn   DateTime?      @map("abierta_en")
+  cerradaEn   DateTime?      @map("cerrada_en")
+  publicadaEn DateTime?      @map("publicada_en")
+  ganador     Candidato?     @relation("GanadorEleccion", fields: [ganadorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  ganadorId   Int?           @unique @map("ganador_id")
+  candidatos  Candidato[]    @relation("CandidatosEleccion")
+  emisiones   Emision[]
+  votos       Voto[]
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  // La segunda vuelta es otra fila con el mismo cargo y ronda + 1.
+  @@unique([asambleaId, cargo, ronda])
+  @@map("elecciones")
+}
+
+model Candidato {
+  id         Int       @id @default(autoincrement())
+  eleccion   Eleccion  @relation("CandidatosEleccion", fields: [eleccionId], references: [id], onDelete: Cascade)
+  eleccionId Int       @map("eleccion_id")
+  nombre     String
+  // Línea secundaria de la cédula, p. ej. "Distrito Huaura" (prototipo, Figura 16).
+  detalle    String?
+  // Mismo patrón que el resto del repo: data URL base64. El panel la reduce antes de subirla.
+  foto       String?   @db.LongText
+  orden      Int       @default(0)
+  ganoEn     Eleccion? @relation("GanadorEleccion")
+  votos      Voto[]
+
+  @@index([eleccionId])
+  @@map("candidatos")
+}
+
+// Padrón de la asamblea. Acreditar = generar el código de 4 dígitos y entregarlo en la mesa.
+model Elector {
+  id           Int       @id @default(autoincrement())
+  asamblea     Asamblea  @relation(fields: [asambleaId], references: [id], onDelete: Cascade)
+  asambleaId   Int       @map("asamblea_id")
+  dni          String    @db.Char(8)
+  nombre       String
+  iglesia      Iglesia?  @relation(fields: [iglesiaId], references: [id], onDelete: SetNull)
+  iglesiaId    Int?      @map("iglesia_id")
+  // bcrypt del código de 4 dígitos; el código en claro se muestra una sola vez y no se guarda.
+  codigoHash   String?   @map("codigo_hash")
+  acreditado   Boolean   @default(false)
+  acreditadoEn DateTime? @map("acreditado_en")
+  emisiones    Emision[]
+
+  @@unique([asambleaId, dni])
+  @@index([iglesiaId])
+  @@map("electores")
+}
+
+// Quién votó en qué elección (sin el sentido del voto). El @@unique impide el doble voto.
+model Emision {
+  id         Int      @id @default(autoincrement())
+  eleccion   Eleccion @relation(fields: [eleccionId], references: [id], onDelete: Cascade)
+  eleccionId Int      @map("eleccion_id")
+  elector    Elector  @relation(fields: [electorId], references: [id], onDelete: Cascade)
+  electorId  Int      @map("elector_id")
+  emitidoEn  DateTime @default(now()) @map("emitido_en")
+
+  @@unique([eleccionId, electorId])
+  @@index([electorId])
+  @@map("emisiones")
+}
+
+// El voto: SIN fecha y SIN referencia al elector, con id UUID aleatorio (no secuencial). Así no
+// hay columna ni orden de inserción que permita unir un voto con su emisión: voto secreto.
+model Voto {
+  id          String    @id @default(uuid()) @db.Char(36)
+  eleccion    Eleccion  @relation(fields: [eleccionId], references: [id], onDelete: Cascade)
+  eleccionId  Int       @map("eleccion_id")
+  candidato   Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  candidatoId Int       @map("candidato_id")
+
+  @@index([eleccionId])
+  @@index([candidatoId])
+  @@map("votos")
 }
