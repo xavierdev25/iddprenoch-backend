@@ -3,6 +3,9 @@
 -- Migración de Prisma equivalente: prisma/migrations/20261120000000_votacion_asambleas
 -- Es el ÚNICO cambio de esquema de los Sprints 2, 3 y 4 (los Sprints 3 y 4 no tocan la base).
 --
+-- Validado el 20/11/2026 sobre el backup real de producción cargado en MariaDB 10.11 (ADR-031),
+-- después del SQL del Sprint 1: datos previos intactos y esquema idéntico al de la aplicación.
+--
 -- REQUISITO: el SQL del Sprint 1 ya ejecutado (docs/sql/2026-11-sprint-1-roles-alcance-auditoria.sql).
 -- El PASO 0 lo comprueba.
 --
@@ -10,7 +13,8 @@
 --   1. Exportar > Rápido > SQL de la base completa (backup).
 --   2. PASO 0: debe devolver 1 fila (columna usuarios.distrito_id). Si devuelve 0, NO sigas.
 --   3. PASO 1 completo, de una sola vez, en la pestaña SQL.
---   4. PASO 2 solo si existe la tabla `_prisma_migrations`.
+--   4. PASO 2: la tabla `_prisma_migrations` EXISTE en producción (verificado con el backup del
+--      20/11/2026), así que hay que descomentar y ejecutar el INSERT.
 --   5. PASO 3: comprobar los resultados esperados.
 --   6. Avisar "SQL 2–4 listo" para subir el código.
 --

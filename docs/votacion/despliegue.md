@@ -13,13 +13,20 @@ segundos el panel no responde.
 3. **PASO 0**: debe devolver una fila (`distrito_id`). Si devuelve 0, el Sprint 1 no está aplicado:
    detenerse.
 4. **PASO 1** completo, de una sola vez, en la pestaña SQL.
-5. **PASO 2** solo si existe la tabla `_prisma_migrations`.
+5. **PASO 2**: la tabla `_prisma_migrations` existe en producción. Descomentar el INSERT y ejecutarlo.
 6. **PASO 3**: seis tablas con 0 filas, y `votos` con exactamente `id`, `eleccion_id`,
    `candidato_id`.
 7. Avisar **"SQL 2–4 listo"**.
 
 El SQL solo crea tablas nuevas. El código que está hoy en producción las ignora, así que el sitio
 sigue funcionando entre este paso y el siguiente.
+
+Los dos SQL (Sprint 1 y Sprints 2–4) se validaron el 20/11/2026 sobre el backup real cargado en
+**MariaDB 10.11**, el motor del hosting: las 13 tablas de datos quedaron idénticas en filas y
+checksum, y el esquema resultante coincide con el de la aplicación.
+
+En `_prisma_migrations` hay un registro fallido antiguo de la migración del 30/07, seguido de su
+reintento exitoso. Es inofensivo para el despliegue manual: no hace falta tocarlo.
 
 ## 2. Código (lo hago yo, al recibir "SQL 2–4 listo")
 

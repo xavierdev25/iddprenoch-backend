@@ -5,8 +5,10 @@
 -- CÓMO EJECUTARLO (phpMyAdmin, base de producción):
 --   1. Antes de nada: Exportar > Rápido > SQL de la base completa (backup).
 --   2. Ejecutar el PASO 0 y guardar el resultado (quién tenía qué rol antes del cambio).
+--   Validado el 20/11/2026 sobre el backup real de producción cargado en MariaDB 10.11 (ADR-031).
 --   3. Ejecutar el PASO 1 completo, de una sola vez, en la pestaña SQL.
---   4. Ejecutar el PASO 2 solo si existe la tabla `_prisma_migrations`.
+--   4. Ejecutar el PASO 2: la tabla `_prisma_migrations` EXISTE en producción (verificado con el
+--      backup del 20/11/2026), así que hay que descomentar y ejecutar el INSERT.
 --   5. Ejecutar el PASO 3 y comprobar los resultados esperados.
 --   6. Recién después, desplegar el código del Sprint 1 (merge a main).
 --
