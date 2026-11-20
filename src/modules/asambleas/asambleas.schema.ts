@@ -57,14 +57,17 @@ export const electorSchema = z.object({
   iglesiaId: idOpcionalField,
 });
 
-export const importarPadronSchema = z
-  .object({
-    iglesiaId: idOpcionalField,
-    distritoId: idOpcionalField,
-    /** Solo bautizados: el estatuto habitual de las asambleas. Desmarcable desde el panel. */
-    soloBautizados: z.boolean().default(true),
-  })
-  .refine((v) => v.iglesiaId || v.distritoId, { message: 'elige una iglesia o un distrito' });
+/**
+ * Sin iglesia ni distrito se importa todo lo que el usuario puede ver: la región entera para el
+ * alcance regional, su distrito para el obispo distrital (el controlador además fija el distrito
+ * de una asamblea distrital).
+ */
+export const importarPadronSchema = z.object({
+  iglesiaId: idOpcionalField,
+  distritoId: idOpcionalField,
+  /** Solo bautizados: el estatuto habitual de las asambleas. Desmarcable desde el panel. */
+  soloBautizados: z.boolean().default(true),
+});
 
 export const acreditarSchema = z.object({
   dni: dniField.regex(/^\d{8}$/, 'dni debe tener 8 dígitos'),
