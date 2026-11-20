@@ -18,6 +18,8 @@ import {
   parse,
 } from './asambleas.schema';
 import * as service from './asambleas.service';
+import * as conduccion from './conduccion.service';
+import { generarActa, generarMetricasCsv } from './acta';
 
 /** Carga la asamblea de la ruta y exige que esté en el alcance del usuario. */
 async function asambleaDeLaRuta(req: Request) {
@@ -168,6 +170,68 @@ export const asambleasController = {
     const alcance = whereRelacionIglesiaEnAlcance(req);
     const distritoAsamblea = asamblea.tipo === 'DISTRITAL' ? { iglesia: { distritoId: asamblea.distritoId } } : {};
     res.json(await service.buscarDni(asamblea.id, dni, distritoDe(req) === null ? distritoAsamblea : alcance));
+  }),
+
+  // ── Conducción (Sprint 3) ──
+  conteo: asyncHandler(async (req: Request, res: Response) => {
+    const eleccion = await eleccionDeLaRuta(req);
+    res.set('Cache-Control', 'no-store').json(await conduccion.conteo(eleccion.id));
+  }),
+
+  abrir: asyncHandler(async (req: Request, res: Response) => {
+    const eleccion = await eleccionDeLaRuta(req);
+    const r = await conduccion.abrir(eleccion.id);
+    await auditar(req, 'ABRIR VOTACION', 'PERMITIDO', `"${eleccion.cargo}" ronda ${eleccion.ronda}`);
+    res.json(r);
+  }),
+
+  cerrar: asyncHandler(async (req: Request, res: Response) => {
+    const eleccion = await eleccionDeLaRuta(req);
+    const r = await conduccion.cerrar(eleccion.id);
+    await auditar(req, 'CERRAR VOTACION', 'PERMITIDO', `"${eleccion.cargo}" ronda ${eleccion.ronda}: ${r.emisiones} votos`);
+    res.json(r);
+  }),
+
+  segundaVuelta: asyncHandler(async (req: Request, res: Response) => {
+    const eleccion = await eleccionDeLaRuta(req);
+    const r = await conduccion.segundaVuelta(eleccion.id);
+    await auditar(req, 'SEGUNDA VUELTA', 'PERMITIDO', `"${eleccion.cargo}" ronda ${r.ronda}`);
+    res.status(201).json(r);
+  }),
+
+  publicar: asyncHandler(async (req: Request, res: Response) => {
+    const eleccion = await eleccionDeLaRuta(req);
+    const r = await conduccion.publicar(eleccion.id);
+    await auditar(req, 'PUBLICAR RESULTADO', 'PERMITIDO', `"${eleccion.cargo}" ronda ${eleccion.ronda}`);
+    res.json(r);
+  }),
+
+  finalizar: asyncHandler(async (req: Request, res: Response) => {
+    const asamblea = await asambleaDeLaRuta(req);
+    await conduccion.finalizar(asamblea.id);
+    await auditar(req, 'FINALIZAR ASAMBLEA', 'PERMITIDO', `"${asamblea.nombre}"`);
+    res.json({ ok: true });
+  }),
+
+  acta: asyncHandler(async (req: Request, res: Response) => {
+    const asamblea = await asambleaDeLaRuta(req);
+    const pdf = await generarActa(asamblea.id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="acta-${asamblea.codigoAcceso}.pdf"`,
+      'Cache-Control': 'no-store',
+    });
+    res.end(pdf);
+  }),
+
+  metricas: asyncHandler(async (req: Request, res: Response) => {
+    const asamblea = await asambleaDeLaRuta(req);
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="metricas-${asamblea.codigoAcceso}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(await generarMetricasCsv(asamblea.id));
   }),
 
   acreditar: asyncHandler(async (req: Request, res: Response) => {

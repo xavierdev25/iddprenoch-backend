@@ -22,12 +22,20 @@ asambleasRouter.post('/:id/electores/importar', c.importarPadron);
 asambleasRouter.get('/:id/electores/dni/:dni', c.buscarDni);
 asambleasRouter.delete('/:id/electores/:electorId', c.eliminarElector);
 asambleasRouter.post('/:id/acreditar', c.acreditar);
+asambleasRouter.post('/:id/finalizar', c.finalizar);
+asambleasRouter.get('/:id/acta.pdf', c.acta);
+asambleasRouter.get('/:id/metricas.csv', c.metricas);
 
 export const eleccionesRouter = Router();
 eleccionesRouter.use(conPermiso);
 eleccionesRouter.put('/:id', c.actualizarEleccion);
 eleccionesRouter.delete('/:id', c.eliminarEleccion);
 eleccionesRouter.post('/:id/candidatos', c.crearCandidato);
+eleccionesRouter.get('/:id/conteo', c.conteo);
+eleccionesRouter.post('/:id/abrir', c.abrir);
+eleccionesRouter.post('/:id/cerrar', c.cerrar);
+eleccionesRouter.post('/:id/segunda-vuelta', c.segundaVuelta);
+eleccionesRouter.post('/:id/publicar', c.publicar);
 
 export const candidatosRouter = Router();
 // La foto es lo único público del módulo (ver el controlador); va antes del control de sesión.
