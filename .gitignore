@@ -7,3 +7,6 @@ dist
 assets-legacy
 # Cookies de sesión exportadas por curl/Bruno: contienen tokens, nunca se versionan
 cookies.txt
+
+# Códigos de electores ficticios que deja scripts/demo-asamblea.mjs
+scripts/.demo-codigos.json
