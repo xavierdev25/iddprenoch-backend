@@ -89,7 +89,7 @@ export async function abrir(eleccionId: number) {
 
 /**
  * Cierra la elección y calcula el ganador. El UPDATE espera a que terminen los votos que ya
- * leyeron la elección como ABIERTA (FOR SHARE en votacion.service), así que el conteo es exacto:
+ * leyeron la elección como ABIERTA (LOCK IN SHARE MODE en votacion.service), así que el conteo es exacto:
  * ningún voto aceptado queda fuera y ninguno entra después.
  */
 export async function cerrar(eleccionId: number) {

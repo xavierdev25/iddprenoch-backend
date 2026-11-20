@@ -100,7 +100,7 @@ export async function cedula(e: EstadoVotacion, electorId: number) {
 /**
  * Emite el voto (ADR-029): Emision + Voto en una sola transacción.
  *
- * - `SELECT … FOR SHARE` sobre la elección: un voto en curso y el cierre no se cruzan. Cerrar hace
+ * - `SELECT … LOCK IN SHARE MODE` sobre la elección: un voto en curso y el cierre no se cruzan. Cerrar hace
  *   un UPDATE de esa fila, que espera a que terminen los votos que ya la leyeron como ABIERTA, y
  *   todo voto posterior la ve CERRADA. El conteo al cierre es exacto.
  * - El UNIQUE (eleccion_id, elector_id) de `emisiones` es la única defensa contra el doble voto:
@@ -117,7 +117,7 @@ export async function votar(
   try {
     const emision = await prisma.$transaction(async (tx) => {
       const [eleccion] = await tx.$queryRaw<{ estado: string; asamblea_id: number; cargo: string; ronda: number }[]>`
-        SELECT estado, asamblea_id, cargo, ronda FROM elecciones WHERE id = ${eleccionId} FOR SHARE`;
+        SELECT estado, asamblea_id, cargo, ronda FROM elecciones WHERE id = ${eleccionId} LOCK IN SHARE MODE`;
       if (!eleccion || eleccion.asamblea_id !== e.asambleaId) throw new ApiError(404, 'Esa elección no existe.');
       if (eleccion.estado !== 'ABIERTA') {
         throw new ApiError(409, 'La votación de este cargo ya se cerró. Tu voto no se registró.');
