@@ -25,6 +25,16 @@ erDiagram
     ESTADO_USUARIO ||--o{ USUARIO : asigna
     DISTRITO ||--o{ USUARIO : "acota (solo Obispo distrital)"
     USUARIO ||--o{ AUDITORIA : "realiza (nullable)"
+    DISTRITO ||--o{ ASAMBLEA : "acota (solo distritales)"
+    ASAMBLEA ||--o{ ELECCION : "elige (un cargo por ronda)"
+    ELECCION ||--o{ CANDIDATO : postula
+    ELECCION |o--o| CANDIDATO : "ganador (nullable)"
+    ASAMBLEA ||--o{ ELECTOR : "padrón"
+    IGLESIA |o--o{ ELECTOR : "pertenece (nullable)"
+    ELECCION ||--o{ EMISION : "quién votó"
+    ELECTOR ||--o{ EMISION : emite
+    ELECCION ||--o{ VOTO : "por quién (sin elector)"
+    CANDIDATO ||--o{ VOTO : recibe
 
     DISTRITO {
         int id PK
@@ -142,6 +152,61 @@ erDiagram
         datetime updated_at
     }
 
+    ASAMBLEA {
+        int id PK
+        string nombre
+        enum tipo "REGIONAL | DISTRITAL"
+        int distrito_id FK "nullable"
+        datetime fecha
+        string codigo_acceso UK "6 caracteres, QR"
+        enum estado "PROGRAMADA | EN_CURSO | FINALIZADA"
+    }
+
+    ELECCION {
+        int id PK
+        int asamblea_id FK
+        string cargo "texto libre, no es CARGO"
+        int ronda "1, 2…  UK(asamblea, cargo, ronda)"
+        enum estado "PENDIENTE | ABIERTA | CERRADA"
+        datetime abierta_en "nullable"
+        datetime cerrada_en "nullable"
+        datetime publicada_en "nullable"
+        int ganador_id FK "nullable, UK"
+    }
+
+    CANDIDATO {
+        int id PK
+        int eleccion_id FK
+        string nombre
+        string detalle "nullable"
+        longtext foto "base64, nullable"
+        int orden
+    }
+
+    ELECTOR {
+        int id PK
+        int asamblea_id FK
+        char dni "UK(asamblea, dni)"
+        string nombre
+        int iglesia_id FK "nullable"
+        string codigo_hash "bcrypt del código de 4 dígitos"
+        boolean acreditado
+        datetime acreditado_en "nullable"
+    }
+
+    EMISION {
+        int id PK
+        int eleccion_id FK "UK(eleccion, elector): un voto"
+        int elector_id FK
+        datetime emitido_en
+    }
+
+    VOTO {
+        char id PK "UUID aleatorio"
+        int eleccion_id FK
+        int candidato_id FK
+    }
+
     AUDITORIA {
         int id PK
         int usuario_id FK "nullable, ON DELETE SET NULL"
@@ -191,3 +256,10 @@ soltar un pin en el punto exacto.
 ## Notas sobre el mapeo a MySQL
 
 Todos los modelos usan `@@map` a nombres de tabla en snake_case (p. ej. `Iglesia` → `iglesias`, `Congregante` → `congregantes`) y `@map` para columnas compuestas (`distritoId` → `distrito_id`). Los campos de texto largo (direcciones, descripciones, fotos e imágenes en base64) se marcan explícitamente con `@db.Text` o `@db.LongText` — el porqué de esa auditoría se explica en [ADR-002](adr/adr-002-mysql-vs-postgresql.md).
+
+## Voto secreto (ADR-029)
+
+`EMISION` registra **que** un elector votó en una elección (y su UNIQUE impide el doble voto);
+`VOTO` registra **por quién**, sin fecha, sin elector y con clave UUID aleatoria. No existe columna
+ni orden de inserción que permita unir un voto con su emisión. Ambos se crean en la misma
+transacción, así que siempre hay tantos votos como emisiones.
