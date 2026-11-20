@@ -3,12 +3,15 @@ import type { Server } from 'node:http';
 import jwt from 'jsonwebtoken';
 import { app } from '../app';
 import { prisma } from '../db/prisma';
+import { montarTiempoReal } from '../realtime/socket';
 
 /** Levanta la API en un puerto libre y devuelve su URL base. */
 export async function levantarApi(): Promise<{ base: string; server: Server }> {
   const server = await new Promise<Server>((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
+  // Igual que server.ts: Socket.IO del panel y la proyección sobre el mismo servidor.
+  montarTiempoReal(server);
   return { base: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, server };
 }
 
