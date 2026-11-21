@@ -107,6 +107,30 @@ jobs:
           server-dir: ${{ secrets.FTP_SERVER_DIR }}/
           local-dir: ./deploy-package/
 
+      # Cliente de Prisma generado con el schema.prisma de ESTE commit (ADR-032). El servidor no
+      # tiene la CLI de Prisma: "Run NPM Install" no regenera el cliente, y uno viejo rompe toda
+      # consulta a columnas o tablas nuevas (pasó con el Sprint 1: /auth/me daba 500).
+      # Solo viaja node_modules/.prisma/client. La acción no borra archivos que ella no subió, así
+      # que el motor de consultas que el servidor ya usaba se conserva aunque sea de otra
+      # plataforma. Se excluyen el motor del runner (debian-openssl-3.0.x) y los WASM (edge), que
+      # la app no usa en Node.
+      - name: Subir el cliente de Prisma generado (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}/node_modules/.prisma/client/
+          local-dir: ./node_modules/.prisma/client/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/libquery_engine-debian-openssl-3.0.x.so.node
+            **/*.wasm
+            **/wasm*.js
+            **/wasm*.mjs
+            **/query_engine_bg.js
+
       # Las variables de entorno (DATABASE_URL, JWT_SECRET, etc.) se configuran
       # en el panel "Setup Node.js App" de cPanel, no vía archivo .env subido.
 

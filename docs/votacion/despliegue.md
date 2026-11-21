@@ -44,6 +44,12 @@ TABLE` de las 22 tablas) al de las migraciones de Prisma.
    `socket.io`, se instaló durante el spike. Las del frontend (`socket.io-client` y
    `qrcode-generator`) van dentro del sitio estático compilado.
 
+## 2b. Reiniciar (tú, siempre)
+
+**cPanel → Setup Node.js App → Restart** después de cada despliegue del backend: Passenger ignora el
+`tmp/restart.txt` que toca el CI (ADR-032). El cliente de Prisma ya llega generado por el CI; no
+hace falta "Run NPM Install" salvo que cambien las dependencias.
+
 ## 3. Verificación inmediata (5 minutos)
 
 | Comprobación | Esperado |
