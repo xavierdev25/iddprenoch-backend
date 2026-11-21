@@ -1,0 +1,144 @@
+{
+  "url": "https://iddprenoch.com",
+  "electores": 200,
+  "inicio": "2026-11-21T23:35:42.066Z",
+  "fin": "2026-11-21T23:38:12.520Z",
+  "detenido": null,
+  "votosAceptados": 200,
+  "errores": {
+    "limiteApp": 0,
+    "limiteHosting": 0,
+    "conexion": 0,
+    "otros": 0
+  },
+  "verificacion": {
+    "votosAceptadosPorElCliente": 200,
+    "emisionesEnServidor": 200,
+    "votosContadosEnServidor": 200,
+    "cuadra": true,
+    "porCandidatoCuadra": true
+  },
+  "operaciones": {
+    "admin.login": {
+      "peticiones": 1,
+      "codigos": {
+        "200": 1
+      },
+      "ms": {
+        "p50": 1173,
+        "p95": 1173,
+        "p99": 1173,
+        "max": 1173
+      }
+    },
+    "admin.preparar": {
+      "peticiones": 5,
+      "codigos": {
+        "201": 5
+      },
+      "ms": {
+        "p50": 267,
+        "p95": 747,
+        "p99": 747,
+        "max": 747
+      }
+    },
+    "admin.padron": {
+      "peticiones": 200,
+      "codigos": {
+        "201": 200
+      },
+      "ms": {
+        "p50": 244,
+        "p95": 441,
+        "p99": 854,
+        "max": 858
+      }
+    },
+    "admin.acreditar": {
+      "peticiones": 200,
+      "codigos": {
+        "200": 200
+      },
+      "ms": {
+        "p50": 299,
+        "p95": 455,
+        "p99": 785,
+        "max": 790
+      }
+    },
+    "elector.ingresar": {
+      "peticiones": 200,
+      "codigos": {
+        "200": 200
+      },
+      "ms": {
+        "p50": 290,
+        "p95": 452,
+        "p99": 743,
+        "max": 995
+      }
+    },
+    "elector.estado": {
+      "peticiones": 4254,
+      "codigos": {
+        "200": 600,
+        "304": 3654
+      },
+      "ms": {
+        "p50": 225,
+        "p95": 298,
+        "p99": 669,
+        "max": 793
+      }
+    },
+    "admin.abrir": {
+      "peticiones": 1,
+      "codigos": {
+        "200": 1
+      },
+      "ms": {
+        "p50": 339,
+        "p95": 339,
+        "p99": 339,
+        "max": 339
+      }
+    },
+    "elector.cedula": {
+      "peticiones": 200,
+      "codigos": {
+        "200": 200
+      },
+      "ms": {
+        "p50": 224,
+        "p95": 291,
+        "p99": 654,
+        "max": 685
+      }
+    },
+    "elector.votar": {
+      "peticiones": 200,
+      "codigos": {
+        "201": 200
+      },
+      "ms": {
+        "p50": 245,
+        "p95": 338,
+        "p99": 702,
+        "max": 817
+      }
+    },
+    "admin.cerrar": {
+      "peticiones": 1,
+      "codigos": {
+        "200": 1
+      },
+      "ms": {
+        "p50": 336,
+        "p95": 336,
+        "p99": 336,
+        "max": 336
+      }
+    }
+  }
+}

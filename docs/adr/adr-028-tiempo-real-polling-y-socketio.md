@@ -124,3 +124,30 @@ mediana no cambia de 25 a 200 electores, y dentro de Node cada consulta tarda < 
 - Un reinicio de Passenger pierde el estado en memoria. El módulo de votación debe reconstruirlo
   desde MySQL al arrancar (las elecciones ABIERTAS siguen en la base).
 - Agregar `socket.io` obliga a ejecutar "Run NPM Install" en cPanel tras el despliegue (ADR-006).
+
+## Prueba de carga real (HU16), 21/11/2026 18:35, producción
+
+`loadtest/votacion-carga.mjs`: 200 electores sintéticos ingresan escalonados en 30 s, consultan el
+estado cada 3 s ± 1 s y **votan todos dentro del mismo minuto**. Las reglas de parada son las del
+spike: se detiene ante el primer error. Corrió desde un solo equipo en Lima (misma IP para todos,
+como un Wi-Fi de local) y dejó el reporte en
+`loadtest/resultados/votacion-carga-2026-11-21T23-35-42-066Z.json`.
+
+| Resultado | Valor |
+|---|---|
+| Votos aceptados | **200 de 200** |
+| Errores (429 / 503-508 / conexión / otros) | 0 / 0 / 0 / 0 |
+| Verificación en el servidor | emisiones = votos contados = votos aceptados = 200, y cuadra por candidato |
+| Detenido por las reglas de parada | No |
+
+| Operación | Peticiones | p50 (ms) | p95 (ms) | p99 (ms) | máx (ms) |
+|---|---|---|---|---|---|
+| `elector.ingresar` | 200 | 290 | 452 | 743 | 995 |
+| `elector.estado` | 4254 | 225 | 298 | 669 | 793 |
+| `elector.cedula` | 200 | 224 | 291 | 654 | 685 |
+| `elector.votar` | 200 | 245 | 338 | 702 | 817 |
+| `admin.acreditar` | 200 | 299 | 455 | 785 | 790 |
+
+Los tiempos incluyen ~220 ms de red Lima → hosting (ver la corrida del spike). En el recorrido
+completo del mismo día, el panel mostró un voto a los **567 ms** del toque de confirmación (objetivo:
+< 2 s) y la proyección mostró al ganador a los **300 ms** de publicarlo.
