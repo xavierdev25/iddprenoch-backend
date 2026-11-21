@@ -36,8 +36,8 @@ if (!['crear', 'votos', 'borrar'].includes(accion)) {
   console.error('Uso: node scripts/demo-asamblea.mjs <crear|votos|borrar> --url https://iddprenoch.com');
   process.exit(1);
 }
-const { DEMO_USUARIO, DEMO_PASSWORD } = process.env;
-if (!DEMO_USUARIO || !DEMO_PASSWORD) {
+const { DEMO_USUARIO, DEMO_PASSWORD, DEMO_COOKIE } = process.env;
+if (!DEMO_COOKIE && (!DEMO_USUARIO || !DEMO_PASSWORD)) {
   console.error('Faltan DEMO_USUARIO y DEMO_PASSWORD (cuenta "Responsable del sistema").');
   process.exit(1);
 }
@@ -54,7 +54,9 @@ async function api(metodo, ruta, { body, cookie } = {}) {
   return { datos, cookie: res.headers.get('set-cookie')?.split(';')[0] };
 }
 
-const sesion = (await api('POST', '/auth/login', { body: { nombre: DEMO_USUARIO, password: DEMO_PASSWORD } })).cookie;
+// DEMO_COOKIE (opcional): reutiliza una sesión ya abierta en vez de iniciar otra. Útil porque el
+// login del panel tiene un límite de intentos por IP.
+const sesion = process.env.DEMO_COOKIE || (await api('POST', '/auth/login', { body: { nombre: DEMO_USUARIO, password: DEMO_PASSWORD } })).cookie;
 const lista = (await api('GET', '/asambleas?limit=100', { cookie: sesion })).datos.data;
 const existente = lista.find((a) => a.nombre === NOMBRE);
 
