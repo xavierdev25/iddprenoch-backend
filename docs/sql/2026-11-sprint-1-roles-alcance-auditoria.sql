@@ -2,39 +2,34 @@
 -- Sprint 1 — Roles, alcance por distrito y auditoría (ADR-026, ADR-027)
 -- Migración de Prisma equivalente: prisma/migrations/20261113000000_roles_alcance_auditoria
 --
--- CÓMO EJECUTARLO (phpMyAdmin, base de producción):
---   1. Antes de nada: Exportar > Rápido > SQL de la base completa (backup).
---   2. Ejecutar el PASO 0 y guardar el resultado (quién tenía qué rol antes del cambio).
---   Validado el 20/11/2026 sobre el backup real de producción cargado en MariaDB 10.11 (ADR-031).
---   3. Ejecutar el PASO 1 completo, de una sola vez, en la pestaña SQL.
---   4. Ejecutar el PASO 2: la tabla `_prisma_migrations` EXISTE en producción (verificado con el
---      backup del 20/11/2026), así que hay que descomentar y ejecutar el INSERT.
---   5. Ejecutar el PASO 3 y comprobar los resultados esperados.
---   6. Recién después, desplegar el código del Sprint 1 (merge a main).
+-- Para pegar en phpMyAdmin → pestaña SQL. NO hace falta elegir la base antes: la primera línea
+-- (USE) la selecciona. Es seguro ejecutarlo más de una vez: si algo ya existe, se salta (se ven
+-- "advertencias", no errores) y no duplica nada.
 --
--- Es NO destructivo: agrega una columna nullable y una tabla nueva, renombra un rol conservando su
--- id e inserta dos roles. El código que hoy está en producción sigue funcionando con este esquema.
+-- No consulta `information_schema`: phpMyAdmin, al ver esa base en una consulta, cambia la base
+-- activa y las sentencias siguientes fallan con "#1044 Acceso denegado … 'information_schema'".
+--
+-- Usa sintaxis de MariaDB (IF NOT EXISTS en columnas, índices y claves foráneas), el motor del
+-- hosting (ADR-031). El resultado es idéntico al de la migración de Prisma indicada abajo.
+--
+-- Antes: Exportar → Rápido → SQL de la base completa (backup).
 -- =================================================================================================
 
+USE `iddpreno_main`;
 
--- -------------------------------------------------------------------------------------------------
--- PASO 0 — Consulta previa (no modifica nada): usuarios y su rol actual.
--- -------------------------------------------------------------------------------------------------
+-- PASO 0 — Usuarios y su rol ANTES del cambio (no modifica nada).
 SELECT u.id, u.nombre AS usuario, r.id AS rol_id, r.nombre AS rol_actual, e.nombre AS estado
 FROM usuarios u
 JOIN roles r ON r.id = u.rol_id
 JOIN estados_usuario e ON e.id = u.estado_id
 ORDER BY r.id, u.nombre;
 
-
--- -------------------------------------------------------------------------------------------------
--- PASO 1 — Migración (idéntica a la migración de Prisma).
--- -------------------------------------------------------------------------------------------------
+-- PASO 1 — Esquema y datos.
 -- AlterTable
-ALTER TABLE `usuarios` ADD COLUMN `distrito_id` INTEGER NULL;
+ALTER TABLE `usuarios` ADD COLUMN IF NOT EXISTS `distrito_id` INTEGER NULL;
 
 -- CreateTable
-CREATE TABLE `auditoria` (
+CREATE TABLE IF NOT EXISTS `auditoria` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `usuario_id` INTEGER NULL,
     `usuario_nombre` VARCHAR(255) NULL,
@@ -52,13 +47,13 @@ CREATE TABLE `auditoria` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateIndex
-CREATE INDEX `usuarios_distrito_id_idx` ON `usuarios`(`distrito_id`);
+CREATE INDEX IF NOT EXISTS `usuarios_distrito_id_idx` ON `usuarios`(`distrito_id`);
 
 -- AddForeignKey
-ALTER TABLE `usuarios` ADD CONSTRAINT `usuarios_distrito_id_fkey` FOREIGN KEY (`distrito_id`) REFERENCES `distritos`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `usuarios` ADD CONSTRAINT `usuarios_distrito_id_fkey` FOREIGN KEY IF NOT EXISTS (`distrito_id`) REFERENCES `distritos`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `auditoria` ADD CONSTRAINT `auditoria_usuario_id_fkey` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `auditoria` ADD CONSTRAINT `auditoria_usuario_id_fkey` FOREIGN KEY IF NOT EXISTS (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 
 -- Datos: roles del control de acceso (ADR-026). No destructivo: el UPDATE conserva el id, así que
@@ -68,45 +63,28 @@ UPDATE `roles` SET `nombre` = 'Responsable del sistema' WHERE `nombre` = 'Admini
 -- INSERT IGNORE se apoya en el UNIQUE de roles.nombre: re-ejecutar el script no duplica filas.
 INSERT IGNORE INTO `roles` (`nombre`) VALUES ('Responsable del sistema'), ('Obispo regional'), ('Obispo distrital');
 
+-- PASO 2 — Registro de la migración (la tabla `_prisma_migrations` existe en producción). Solo
+-- inserta si todavía no hay un registro exitoso de esta migración.
+INSERT INTO `_prisma_migrations` (id, checksum, migration_name, finished_at, started_at, applied_steps_count)
+SELECT UUID(), '03314ac72c592f07f8ce935b04e38706ca181ba46cbf8d49669345f1eff6d557',
+       '20261113000000_roles_alcance_auditoria', NOW(3), NOW(3), 1
+FROM DUAL
+WHERE NOT EXISTS (
+  SELECT 1 FROM `_prisma_migrations`
+  WHERE migration_name = '20261113000000_roles_alcance_auditoria' AND finished_at IS NOT NULL
+);
 
--- -------------------------------------------------------------------------------------------------
--- PASO 2 — Solo si existe la tabla `_prisma_migrations` (compruébalo con la consulta de abajo).
--- Registra la migración como aplicada para que un futuro `prisma migrate deploy` no la repita.
--- -------------------------------------------------------------------------------------------------
--- SHOW TABLES LIKE '_prisma_migrations';
---
--- INSERT INTO `_prisma_migrations`
---   (id, checksum, migration_name, finished_at, started_at, applied_steps_count)
--- VALUES
---   (UUID(), '03314ac72c592f07f8ce935b04e38706ca181ba46cbf8d49669345f1eff6d557',
---    '20261113000000_roles_alcance_auditoria', NOW(3), NOW(3), 1);
+-- PASO 3 — Verificación. Esperado: usuarios.distrito_id existe; la tabla auditoria existe; los
+-- roles incluyen "Responsable del sistema" (con el id que tenía "Administrador Regional"),
+-- "Obispo regional" y "Obispo distrital", cada uno UNA sola vez.
+SHOW COLUMNS FROM `usuarios` LIKE 'distrito_id';
+SHOW TABLES LIKE 'auditoria';
+SELECT id, nombre FROM `roles` ORDER BY id;
 
-
--- -------------------------------------------------------------------------------------------------
--- PASO 3 — Verificación. Resultados esperados:
---   a) roles: aparecen 'Responsable del sistema' (con el id que tenía 'Administrador Regional'),
---      'Obispo regional', 'Obispo distrital', 'Editor', 'Secretario Regional', 'Tesorero Regional'.
---   b) usuarios: el usuario del id 1 figura como 'Responsable del sistema'; distrito_id en NULL.
---   c) auditoria: la tabla existe y está vacía (0).
--- -------------------------------------------------------------------------------------------------
-SELECT id, nombre FROM roles ORDER BY id;
-
-SELECT u.id, u.nombre AS usuario, r.nombre AS rol, u.distrito_id
-FROM usuarios u JOIN roles r ON r.id = u.rol_id
-ORDER BY u.id;
-
-SELECT COUNT(*) AS registros_auditoria FROM auditoria;
-
-
--- -------------------------------------------------------------------------------------------------
--- REVERSIÓN DEL ESQUEMA — NO hace falta para revertir el código (ver ADR-026): el esquema nuevo
--- es compatible con el código anterior. Solo si se decidiera deshacer también la base. Borra la
--- tabla de auditoría con sus registros y los distritos asignados: por eso va comentado.
--- -------------------------------------------------------------------------------------------------
+-- REVERSIÓN DEL ESQUEMA (comentada; NO hace falta para revertir el código, ver ADR-026).
 -- ALTER TABLE `auditoria` DROP FOREIGN KEY `auditoria_usuario_id_fkey`;
 -- DROP TABLE `auditoria`;
 -- ALTER TABLE `usuarios` DROP FOREIGN KEY `usuarios_distrito_id_fkey`;
 -- DROP INDEX `usuarios_distrito_id_idx` ON `usuarios`;
 -- ALTER TABLE `usuarios` DROP COLUMN `distrito_id`;
 -- UPDATE `roles` SET `nombre` = 'Administrador Regional' WHERE `nombre` = 'Responsable del sistema';
--- (Los roles 'Obispo regional' y 'Obispo distrital' pueden quedarse: sin usuarios no tienen efecto.)

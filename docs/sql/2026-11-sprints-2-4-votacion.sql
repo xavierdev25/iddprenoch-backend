@@ -1,41 +1,31 @@
 -- =================================================================================================
 -- Sprints 2–4 — Votación electrónica en asambleas (ADR-028, ADR-029, ADR-030)
 -- Migración de Prisma equivalente: prisma/migrations/20261120000000_votacion_asambleas
--- Es el ÚNICO cambio de esquema de los Sprints 2, 3 y 4 (los Sprints 3 y 4 no tocan la base).
+-- (único cambio de esquema de los Sprints 2, 3 y 4).
 --
--- Validado el 20/11/2026 sobre el backup real de producción cargado en MariaDB 10.11 (ADR-031),
--- después del SQL del Sprint 1: datos previos intactos y esquema idéntico al de la aplicación.
+-- Para pegar en phpMyAdmin → pestaña SQL. NO hace falta elegir la base antes: la primera línea
+-- (USE) la selecciona. Es seguro ejecutarlo más de una vez: si algo ya existe, se salta (se ven
+-- "advertencias", no errores) y no duplica nada.
 --
--- REQUISITO: el SQL del Sprint 1 ya ejecutado (docs/sql/2026-11-sprint-1-roles-alcance-auditoria.sql).
--- El PASO 0 lo comprueba.
+-- No consulta `information_schema`: phpMyAdmin, al ver esa base en una consulta, cambia la base
+-- activa y las sentencias siguientes fallan con "#1044 Acceso denegado … 'information_schema'".
 --
--- CÓMO EJECUTARLO (phpMyAdmin, base de producción):
---   1. Exportar > Rápido > SQL de la base completa (backup).
---   2. PASO 0: debe devolver 1 fila (columna usuarios.distrito_id). Si devuelve 0, NO sigas.
---   3. PASO 1 completo, de una sola vez, en la pestaña SQL.
---   4. PASO 2: la tabla `_prisma_migrations` EXISTE en producción (verificado con el backup del
---      20/11/2026), así que hay que descomentar y ejecutar el INSERT.
---   5. PASO 3: comprobar los resultados esperados.
---   6. Avisar "SQL 2–4 listo" para subir el código.
+-- Usa sintaxis de MariaDB (IF NOT EXISTS en columnas, índices y claves foráneas), el motor del
+-- hosting (ADR-031). El resultado es idéntico al de la migración de Prisma indicada abajo.
 --
--- Es NO destructivo: solo crea seis tablas nuevas y sus claves foráneas. No modifica ni borra
--- ninguna tabla ni dato existente; el código actual de producción las ignora.
+-- REQUISITO: el SQL del Sprint 1 aplicado (el PASO 0 lo muestra).
+-- Antes: Exportar → Rápido → SQL de la base completa (backup).
 -- =================================================================================================
 
+USE `iddpreno_main`;
 
--- -------------------------------------------------------------------------------------------------
--- PASO 0 — Comprobación previa: ¿se aplicó el Sprint 1? Debe devolver una fila.
--- -------------------------------------------------------------------------------------------------
-SELECT COLUMN_NAME
-FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'distrito_id';
+-- PASO 0 — ¿Está aplicado el Sprint 1? Debe mostrar UNA fila (distrito_id). Si no muestra nada,
+-- detente: primero va el SQL del Sprint 1.
+SHOW COLUMNS FROM `usuarios` LIKE 'distrito_id';
 
-
--- -------------------------------------------------------------------------------------------------
--- PASO 1 — Migración (idéntica a la migración de Prisma).
--- -------------------------------------------------------------------------------------------------
+-- PASO 1 — Seis tablas nuevas y sus claves foráneas. No toca ninguna tabla existente.
 -- CreateTable
-CREATE TABLE `asambleas` (
+CREATE TABLE IF NOT EXISTS `asambleas` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `nombre` VARCHAR(191) NOT NULL,
     `tipo` ENUM('REGIONAL', 'DISTRITAL') NOT NULL,
@@ -52,7 +42,7 @@ CREATE TABLE `asambleas` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `elecciones` (
+CREATE TABLE IF NOT EXISTS `elecciones` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `asamblea_id` INTEGER NOT NULL,
     `cargo` VARCHAR(191) NOT NULL,
@@ -70,7 +60,7 @@ CREATE TABLE `elecciones` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `candidatos` (
+CREATE TABLE IF NOT EXISTS `candidatos` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `eleccion_id` INTEGER NOT NULL,
     `nombre` VARCHAR(191) NOT NULL,
@@ -83,7 +73,7 @@ CREATE TABLE `candidatos` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `electores` (
+CREATE TABLE IF NOT EXISTS `electores` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `asamblea_id` INTEGER NOT NULL,
     `dni` CHAR(8) NOT NULL,
@@ -99,7 +89,7 @@ CREATE TABLE `electores` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `emisiones` (
+CREATE TABLE IF NOT EXISTS `emisiones` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `eleccion_id` INTEGER NOT NULL,
     `elector_id` INTEGER NOT NULL,
@@ -111,7 +101,7 @@ CREATE TABLE `emisiones` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `votos` (
+CREATE TABLE IF NOT EXISTS `votos` (
     `id` CHAR(36) NOT NULL,
     `eleccion_id` INTEGER NOT NULL,
     `candidato_id` INTEGER NOT NULL,
@@ -122,70 +112,51 @@ CREATE TABLE `votos` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `asambleas` ADD CONSTRAINT `asambleas_distrito_id_fkey` FOREIGN KEY (`distrito_id`) REFERENCES `distritos`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `asambleas` ADD CONSTRAINT `asambleas_distrito_id_fkey` FOREIGN KEY IF NOT EXISTS (`distrito_id`) REFERENCES `distritos`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `elecciones` ADD CONSTRAINT `elecciones_asamblea_id_fkey` FOREIGN KEY (`asamblea_id`) REFERENCES `asambleas`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `elecciones` ADD CONSTRAINT `elecciones_asamblea_id_fkey` FOREIGN KEY IF NOT EXISTS (`asamblea_id`) REFERENCES `asambleas`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `elecciones` ADD CONSTRAINT `elecciones_ganador_id_fkey` FOREIGN KEY (`ganador_id`) REFERENCES `candidatos`(`id`) ON DELETE SET NULL ON UPDATE NO ACTION;
+ALTER TABLE `elecciones` ADD CONSTRAINT `elecciones_ganador_id_fkey` FOREIGN KEY IF NOT EXISTS (`ganador_id`) REFERENCES `candidatos`(`id`) ON DELETE SET NULL ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE `candidatos` ADD CONSTRAINT `candidatos_eleccion_id_fkey` FOREIGN KEY (`eleccion_id`) REFERENCES `elecciones`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `candidatos` ADD CONSTRAINT `candidatos_eleccion_id_fkey` FOREIGN KEY IF NOT EXISTS (`eleccion_id`) REFERENCES `elecciones`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `electores` ADD CONSTRAINT `electores_asamblea_id_fkey` FOREIGN KEY (`asamblea_id`) REFERENCES `asambleas`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `electores` ADD CONSTRAINT `electores_asamblea_id_fkey` FOREIGN KEY IF NOT EXISTS (`asamblea_id`) REFERENCES `asambleas`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `electores` ADD CONSTRAINT `electores_iglesia_id_fkey` FOREIGN KEY (`iglesia_id`) REFERENCES `iglesias`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `electores` ADD CONSTRAINT `electores_iglesia_id_fkey` FOREIGN KEY IF NOT EXISTS (`iglesia_id`) REFERENCES `iglesias`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `emisiones` ADD CONSTRAINT `emisiones_eleccion_id_fkey` FOREIGN KEY (`eleccion_id`) REFERENCES `elecciones`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `emisiones` ADD CONSTRAINT `emisiones_eleccion_id_fkey` FOREIGN KEY IF NOT EXISTS (`eleccion_id`) REFERENCES `elecciones`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `emisiones` ADD CONSTRAINT `emisiones_elector_id_fkey` FOREIGN KEY (`elector_id`) REFERENCES `electores`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `emisiones` ADD CONSTRAINT `emisiones_elector_id_fkey` FOREIGN KEY IF NOT EXISTS (`elector_id`) REFERENCES `electores`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `votos` ADD CONSTRAINT `votos_eleccion_id_fkey` FOREIGN KEY (`eleccion_id`) REFERENCES `elecciones`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `votos` ADD CONSTRAINT `votos_eleccion_id_fkey` FOREIGN KEY IF NOT EXISTS (`eleccion_id`) REFERENCES `elecciones`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `votos` ADD CONSTRAINT `votos_candidato_id_fkey` FOREIGN KEY (`candidato_id`) REFERENCES `candidatos`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `votos` ADD CONSTRAINT `votos_candidato_id_fkey` FOREIGN KEY IF NOT EXISTS (`candidato_id`) REFERENCES `candidatos`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- PASO 2 — Registro de la migración (solo si todavía no hay un registro exitoso).
+INSERT INTO `_prisma_migrations` (id, checksum, migration_name, finished_at, started_at, applied_steps_count)
+SELECT UUID(), '49d9bbdb3db592f86e7a78e06766d067acbf38934fe2c4dd2cb875237e83e351',
+       '20261120000000_votacion_asambleas', NOW(3), NOW(3), 1
+FROM DUAL
+WHERE NOT EXISTS (
+  SELECT 1 FROM `_prisma_migrations`
+  WHERE migration_name = '20261120000000_votacion_asambleas' AND finished_at IS NOT NULL
+);
 
+-- PASO 3 — Verificación. Esperado: las seis tablas listadas, y `votos` con exactamente tres
+-- columnas (id, eleccion_id, candidato_id): sin fecha ni elector, así se garantiza el voto secreto.
+SHOW TABLES WHERE `Tables_in_iddpreno_main` IN ('asambleas', 'elecciones', 'candidatos', 'electores', 'emisiones', 'votos');
+SHOW COLUMNS FROM `votos`;
 
--- -------------------------------------------------------------------------------------------------
--- PASO 2 — Solo si existe `_prisma_migrations` (SHOW TABLES LIKE '_prisma_migrations';).
--- -------------------------------------------------------------------------------------------------
--- INSERT INTO `_prisma_migrations`
---   (id, checksum, migration_name, finished_at, started_at, applied_steps_count)
--- VALUES
---   (UUID(), '49d9bbdb3db592f86e7a78e06766d067acbf38934fe2c4dd2cb875237e83e351',
---    '20261120000000_votacion_asambleas', NOW(3), NOW(3), 1);
-
-
--- -------------------------------------------------------------------------------------------------
--- PASO 3 — Verificación. Resultados esperados:
---   a) las seis tablas nuevas existen y están vacías (0 filas cada una);
---   b) `votos` tiene exactamente 3 columnas: id, eleccion_id, candidato_id (sin fecha ni elector:
---      es lo que garantiza el voto secreto, ADR-029).
--- -------------------------------------------------------------------------------------------------
-SELECT 'asambleas' AS tabla, COUNT(*) AS filas FROM asambleas
-UNION ALL SELECT 'elecciones', COUNT(*) FROM elecciones
-UNION ALL SELECT 'candidatos', COUNT(*) FROM candidatos
-UNION ALL SELECT 'electores', COUNT(*) FROM electores
-UNION ALL SELECT 'emisiones', COUNT(*) FROM emisiones
-UNION ALL SELECT 'votos', COUNT(*) FROM votos;
-
-SELECT COLUMN_NAME FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'votos'
-ORDER BY ORDINAL_POSITION;
-
-
--- -------------------------------------------------------------------------------------------------
--- REVERSIÓN DEL ESQUEMA — NO hace falta para revertir el código: el código anterior ignora estas
--- tablas. Solo si se decidiera deshacer también la base ANTES de usarla (borra asambleas, padrones
--- y votos): por eso va comentada. El orden respeta las claves foráneas.
--- -------------------------------------------------------------------------------------------------
+-- REVERSIÓN DEL ESQUEMA (comentada; borra los datos de votación). Solo antes de usarla.
 -- ALTER TABLE `elecciones` DROP FOREIGN KEY `elecciones_ganador_id_fkey`;
 -- DROP TABLE `votos`;
 -- DROP TABLE `emisiones`;

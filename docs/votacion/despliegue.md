@@ -8,25 +8,31 @@ segundos el panel no responde.
 
 ## 1. Base de datos (tú, en cPanel)
 
+Los SQL empiezan con `USE \`iddpreno_main\`;`, no consultan `information_schema` y se pueden
+ejecutar más de una vez (ver `docs/sql/diagnostico.sql` para saber en qué estado está la base).
+**No hace falta elegir la base en phpMyAdmin**: se pega todo en la pestaña SQL de la portada.
+
 1. phpMyAdmin → base de producción → **Exportar → Rápido → SQL**. Guardar el archivo.
-2. Abrir `docs/sql/2026-11-sprints-2-4-votacion.sql`.
-3. **PASO 0**: debe devolver una fila (`distrito_id`). Si devuelve 0, el Sprint 1 no está aplicado:
-   detenerse.
-4. **PASO 1** completo, de una sola vez, en la pestaña SQL.
-5. **PASO 2**: la tabla `_prisma_migrations` existe en producción. Descomentar el INSERT y ejecutarlo.
-6. **PASO 3**: seis tablas con 0 filas, y `votos` con exactamente `id`, `eleccion_id`,
-   `candidato_id`.
-7. Avisar **"SQL 2–4 listo"**.
+2. Pestaña **SQL** → pegar `docs/sql/diagnostico.sql` → **Continuar**. Comprobar:
+   `auditoria` y `distrito_id` existen (Sprint 1 aplicado).
+3. Pegar `docs/sql/2026-11-sprints-2-4-votacion.sql` completo → **Continuar**. Debe terminar sin
+   errores (las "advertencias" son normales si algo ya existía).
+4. Revisar los resultados del final: seis tablas nuevas, y `votos` con exactamente `id`,
+   `eleccion_id`, `candidato_id`.
+5. Avisar **"SQL 2–4 listo"**.
 
 El SQL solo crea tablas nuevas. El código que está hoy en producción las ignora, así que el sitio
-sigue funcionando entre este paso y el siguiente.
+sigue funcionando entre este paso y el siguiente. El PASO 2 (registro en `_prisma_migrations`)
+ya viene activo y no se duplica.
 
-Los dos SQL (Sprint 1 y Sprints 2–4) se validaron el 20/11/2026 sobre el backup real cargado en
-**MariaDB 10.11**, el motor del hosting: las 13 tablas de datos quedaron idénticas en filas y
-checksum, y el esquema resultante coincide con el de la aplicación.
+Por qué falló la primera vez (#1044 sobre `information_schema`): phpMyAdmin, al ejecutar una
+consulta que nombra otra base (`information_schema.COLUMNS`), cambia la base activa para las
+sentencias siguientes, y el `CREATE TABLE` quedó apuntando a `information_schema`. Reproducido en
+local con phpMyAdmin 5.2.3, MariaDB 10.11 y un usuario con permisos solo sobre `iddpreno_main`.
 
-En `_prisma_migrations` hay un registro fallido antiguo de la migración del 30/07, seguido de su
-reintento exitoso. Es inofensivo para el despliegue manual: no hace falta tocarlo.
+Los SQL se validaron el 21/11/2026 sobre el backup real cargado en **MariaDB 10.11**, pegados en
+phpMyAdmin sin elegir base: sin errores, repetibles, y con un esquema idéntico (`SHOW CREATE
+TABLE` de las 22 tablas) al de las migraciones de Prisma.
 
 ## 2. Código (lo hago yo, al recibir "SQL 2–4 listo")
 
