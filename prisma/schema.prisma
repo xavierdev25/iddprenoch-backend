@@ -1,6 +1,8 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-1.1.x"]
+  // rhel-openssl-3.0.x es el motor que usa el hosting (CloudLinux, familia RHEL): verificado el
+  // 21/11/2026 en el cliente que el servidor carga. debian-openssl-1.1.x se conserva por compatibilidad.
+  binaryTargets = ["native", "debian-openssl-1.1.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

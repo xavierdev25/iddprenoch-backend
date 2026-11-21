@@ -30,3 +30,18 @@ Restart desde cPanel.
 - Un cambio de esquema ya no requiere regenerar el cliente a mano: llega con el despliegue.
 - El primer despliegue con este paso sube unos 20 MB; los siguientes, solo lo que cambió.
 - Queda un paso manual (Restart) por despliegue, documentado en `docs/votacion/despliegue.md`.
+
+## Actualización (21/11/2026): la ruta correcta es el entorno virtual
+
+La primera versión subía el cliente a `iglesia-api/node_modules/.prisma/client`, y no surtió
+efecto: en CloudLinux la app carga sus dependencias del entorno virtual
+`/home/iddpreno/nodevenv/iglesia-api/22/lib/node_modules`. Ahí el cliente era del 30/07, con dos
+motores: `debian-openssl-1.1.x` y `rhel-openssl-3.0.x`. El que usa el servidor es
+**`rhel-openssl-3.0.x`** (familia RHEL).
+
+Se restableció el panel a mano: se subió el cliente nuevo a esa carpeta, se copió el motor
+`rhel-openssl-3.0.x` (misma versión de motor, `c2990dca…`) y se reinició. Desde entonces:
+
+- `binaryTargets` incluye `rhel-openssl-3.0.x`, para que el cliente generado traiga ese motor;
+- el CI sube a `${FTP_SERVER_DIR}/../nodevenv/iglesia-api/22/lib/node_modules/.prisma/client/`;
+- si se cambia la versión de Node en cPanel, hay que actualizar el `22` de esa ruta.
