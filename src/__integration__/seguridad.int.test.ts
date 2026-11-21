@@ -165,3 +165,21 @@ describe('5. El conteo no es visible para electores', () => {
     expect((await get(`/api/elecciones/${eleccionId}/conteo`)).status).toBe(401);
   });
 });
+
+describe('6. Límite de intentos de login', () => {
+  it('cuenta solo los fallidos: muchos ingresos correctos desde la misma IP no bloquean', async () => {
+    const cat = await catalogos();
+    const passwordHash = await bcrypt.hash('clave-correcta-1', 4);
+    await prisma.usuario.create({ data: { nombre: 's.login', passwordHash, rolId: cat.roles.editor.id, estadoId: cat.activo.id } });
+    const intentar = (password: string) =>
+      fetch(`${base}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: 's.login', password }),
+      }).then((r) => r.status);
+
+    for (let i = 0; i < 8; i++) expect(await intentar('clave-correcta-1')).toBe(200);
+    for (let i = 0; i < 5; i++) expect(await intentar('equivocada')).toBe(401);
+    expect(await intentar('equivocada')).toBe(429);
+  });
+});
